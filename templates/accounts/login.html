@@ -1,0 +1,17 @@
+{# templates/accounts/login.html #}
+{% extends "accounts/auth_base.html" %}
+{% block title %}Log in{% endblock %}
+{% block heading %}Welcome back{% endblock %}
+{% block content %}
+<form method="post" class="space-y-4">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}">
+  {% if form.non_field_errors %}
+    <div class="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{{ form.non_field_errors.0 }}</div>
+  {% endif %}
+  {% include "accounts/_field.html" with field=form.username %}
+  {% include "accounts/_field.html" with field=form.password %}
+  <button class="w-full rounded-lg bg-household px-4 py-2.5 text-sm font-medium text-white hover:opacity-90">Log in</button>
+  <p class="text-center text-sm"><a href="{% url 'accounts:password_reset' %}" class="text-slate-600 hover:underline">Forgot your password?</a></p>
+</form>
+{% endblock %}

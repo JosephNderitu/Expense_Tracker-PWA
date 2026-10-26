@@ -1,8 +1,12 @@
 asgiref==3.12.1
+click==8.5.0
 Django==5.2.18
+django-click==2.5.0
 django-filter==26.1
+django-tailwind-cli==4.8.1
 pillow==12.3.0
 python-decouple==3.8
+semver==3.1.0
 sqlparse==0.6.0
 typing_extensions==4.16.0
 tzdata==2026.5

@@ -6,3 +6,5 @@ media/
 staticfiles/
 __pycache__/
 *.pyc
+assets/
+.django_tailwind_cli/

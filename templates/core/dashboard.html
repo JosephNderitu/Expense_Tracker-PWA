@@ -1,0 +1,9 @@
+{# templates/core/dashboard.html #}
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+  <div class="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+    <h1 class="text-xl font-semibold">Dashboard</h1>
+    <p class="mt-1 text-slate-600">Active workspace: {{ active_workspace|title }}</p>
+  </div>
+{% endblock %}

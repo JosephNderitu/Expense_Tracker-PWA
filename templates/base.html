@@ -1,0 +1,48 @@
+{# templates/base.html #}
+{% load tailwind_cli %}
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Expense Tracker{% endblock %}</title>
+  {% tailwind_css %}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-full text-slate-800">
+  <header class="border-b border-slate-200 bg-white">
+    <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+      <a href="{% url 'core:dashboard' %}" class="flex items-center gap-2 font-semibold">
+        <i class="fa-solid fa-wallet {% if active_workspace == 'work' %}text-work{% else %}text-household{% endif %}"></i>
+        Expense Tracker
+      </a>
+
+      <form method="post" action="{% url 'core:switch_workspace' %}" class="inline-flex rounded-full bg-slate-100 p-1 text-sm">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button name="workspace" value="household" class="rounded-full px-4 py-1.5 font-medium transition {% if active_workspace == 'household' %}bg-household text-white shadow{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+          <i class="fa-solid fa-house mr-1.5"></i>Household
+        </button>
+        <button name="workspace" value="work" class="rounded-full px-4 py-1.5 font-medium transition {% if active_workspace == 'work' %}bg-work text-white shadow{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+          <i class="fa-solid fa-truck mr-1.5"></i>Work
+        </button>
+      </form>
+
+      <form method="post" action="{% url 'accounts:logout' %}">
+        {% csrf_token %}
+        <button class="text-sm text-slate-600 hover:text-slate-900">
+          <i class="fa-solid fa-right-from-bracket mr-1.5"></i>Log out
+        </button>
+      </form>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 py-8">
+    {% for message in messages %}
+      <div class="mb-4 rounded-lg bg-slate-100 px-4 py-3 text-sm">{{ message }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

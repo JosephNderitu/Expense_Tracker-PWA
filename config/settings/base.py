@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     "django_filters",
     "apps.accounts", "apps.core",
+    "django_tailwind_cli",
 ]
 
 MIDDLEWARE = [
@@ -121,7 +122,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_DIRS = [BASE_DIR / "assets", BASE_DIR / "static"]
+TAILWIND_CLI_SRC_CSS = "src/styles/main.css"
+TAILWIND_CLI_VERSION = "4.3.3"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
@@ -130,6 +133,14 @@ STORAGES = {
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+
+TEMPLATES[0]["OPTIONS"]["context_processors"] += [
+    "apps.core.context_processors.workspace",
+]
+
+PASSWORD_RESET_TIMEOUT = 3600  # Django's default is 3 days; the spec says 1 hour
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Expense Tracker <noreply@localhost>")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

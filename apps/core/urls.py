@@ -1,12 +1,10 @@
 # apps/core/urls.py
-from django.http import HttpResponse
 from django.urls import path
+from . import views
 
 app_name = "core"
 
-def dashboard(request):
-    return HttpResponse("Dashboard placeholder")
-
 urlpatterns = [
-    path("", dashboard, name="dashboard"),
+    path("", views.dashboard, name="dashboard"),
+    path("workspace/switch/", views.switch_workspace, name="switch_workspace"),
 ]
