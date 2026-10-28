@@ -1,0 +1,15 @@
+{# templates/partials/_prefs.html #}
+<button type="button" data-action="theme" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink">
+  <i class="fa-solid fa-moon w-5 text-center dark:hidden"></i>
+  <i class="fa-solid fa-sun hidden w-5 text-center dark:inline"></i>
+  <span>Dark mode</span>
+</button>
+<button type="button" data-action="privacy" aria-pressed="false" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink aria-pressed:text-accent">
+  <i class="fa-solid fa-eye-slash w-5 text-center"></i><span>Hide amounts</span>
+</button>
+<form method="post" action="{% url 'accounts:logout' %}">
+  {% csrf_token %}
+  <button class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink">
+    <i class="fa-solid fa-right-from-bracket w-5 text-center"></i><span>Log out</span>
+  </button>
+</form>

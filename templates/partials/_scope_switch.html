@@ -1,0 +1,12 @@
+{# templates/partials/_scope_switch.html #}
+<form method="post" action="{% url 'core:switch_workspace' %}" role="radiogroup" aria-label="View"
+      class="inline-flex rounded-full border border-line bg-surface p-1 text-sm shadow-sm">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  {% for value, label, icon in scope_options %}
+    <button name="scope" value="{{ value }}" role="radio" aria-checked="{% if scope == value %}true{% else %}false{% endif %}"
+            class="inline-flex min-h-10 items-center gap-2 rounded-full px-3.5 font-medium transition sm:px-4 {% if scope == value %}bg-accent text-on-accent shadow-sm{% else %}text-muted hover:text-ink{% endif %}">
+      <i class="fa-solid {{ icon }}"></i><span class="hidden sm:inline">{{ label }}</span>
+    </button>
+  {% endfor %}
+</form>

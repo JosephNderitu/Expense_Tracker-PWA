@@ -1,59 +1,111 @@
-{# templates/base.html #}
 {% load tailwind_cli %}
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-50">
+<html lang="en" class="h-full">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Expense Tracker{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}Overview{% endblock %} · Expense Tracker</title>
+  <script>
+    (() => { try {
+      const t = localStorage.getItem("theme");
+      if (t === "dark" || (!t && matchMedia("(prefers-color-scheme: dark)").matches)) document.documentElement.classList.add("dark");
+      if (localStorage.getItem("hide-amounts") === "1") document.documentElement.classList.add("hide-amounts");
+    } catch (e) {} })();
+  </script>
   {% tailwind_css %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-full text-slate-800">
-  <header class="border-b border-slate-200 bg-white">
-    <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-      <a href="{% url 'core:dashboard' %}" class="flex items-center gap-2 font-semibold">
-        <i class="fa-solid fa-wallet {% if active_workspace == 'work' %}text-work{% else %}text-household{% endif %}"></i>
-        Expense Tracker
-      </a>
+<body class="min-h-full bg-canvas text-ink antialiased" data-scope="{{ scope }}">
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2">Skip to content</a>
 
-      <form method="post" action="{% url 'core:switch_workspace' %}" class="inline-flex rounded-full bg-slate-100 p-1 text-sm">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{{ request.path }}">
-        <button name="workspace" value="household" class="rounded-full px-4 py-1.5 font-medium transition {% if active_workspace == 'household' %}bg-household text-white shadow{% else %}text-slate-600 hover:text-slate-900{% endif %}">
-          <i class="fa-solid fa-house mr-1.5"></i>Household
-        </button>
-        <button name="workspace" value="work" class="rounded-full px-4 py-1.5 font-medium transition {% if active_workspace == 'work' %}bg-work text-white shadow{% else %}text-slate-600 hover:text-slate-900{% endif %}">
-          <i class="fa-solid fa-truck mr-1.5"></i>Work
-        </button>
-      </form>
-
-      <form method="post" action="{% url 'accounts:logout' %}">
-        {% csrf_token %}
-        <button class="text-sm text-slate-600 hover:text-slate-900">
-          <i class="fa-solid fa-right-from-bracket mr-1.5"></i>Log out
-        </button>
-      </form>
-    </div>
-  </header>
-
-    <nav class="border-b border-slate-200 bg-white">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 text-sm">
-      <a href="{% url 'core:dashboard' %}" class="py-3 {% if request.resolver_match.url_name == 'dashboard' %}font-medium text-slate-900{% else %}text-slate-500 hover:text-slate-900{% endif %}">
-        <i class="fa-solid fa-chart-pie mr-1.5"></i>Dashboard
+  <aside class="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface p-5 lg:flex">
+    <a href="{% url 'core:dashboard' %}" class="flex items-center gap-3 px-2 font-semibold">
+      <span class="grid size-10 place-items-center rounded-xl bg-accent text-on-accent"><i class="fa-solid fa-wallet"></i></span>
+      Expense Tracker
+    </a>
+    <nav class="mt-8 space-y-1 text-sm" aria-label="Main">
+      <a href="{% url 'core:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}
+         class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if request.resolver_match.url_name == 'dashboard' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+        <i class="fa-solid fa-chart-pie w-5 text-center"></i>Overview
       </a>
-      <a href="{% url 'core:transaction_create' %}" class="rounded-lg px-3 py-1.5 font-medium text-white {% if active_workspace == 'work' %}bg-work{% else %}bg-household{% endif %}">
-        <i class="fa-solid fa-plus mr-1.5"></i>Add entry
+      <a href="{% url 'core:transaction_create' %}" {% if request.resolver_match.url_name == 'transaction_create' %}aria-current="page"{% endif %}
+         class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if request.resolver_match.url_name == 'transaction_create' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+        <i class="fa-solid fa-plus w-5 text-center"></i>Add entry
       </a>
+    </nav>
+    <div class="mt-auto space-y-1 text-sm">{% include "partials/_prefs.html" %}</div>
+  </aside>
+
+  <div class="lg:pl-64">
+    <header class="sticky top-0 z-20 border-b border-line bg-canvas/80 backdrop-blur">
+      <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <a href="{% url 'core:dashboard' %}" class="grid size-10 place-items-center rounded-xl bg-accent text-on-accent lg:hidden">
+          <i class="fa-solid fa-wallet"></i><span class="sr-only">Expense Tracker home</span>
+        </a>
+        {% include "partials/_scope_switch.html" %}
+        <a href="{% url 'core:transaction_create' %}" class="hidden min-h-11 items-center gap-2 rounded-full bg-accent px-4 text-sm font-medium text-on-accent shadow-sm hover:opacity-90 lg:inline-flex">
+          <i class="fa-solid fa-plus"></i>Add entry
+          <kbd class="rounded bg-black/15 px-1.5 text-xs">N</kbd>
+        </a>
+      </div>
+    </header>
+
+    <main id="main" class="mx-auto max-w-6xl px-4 pb-28 pt-6 lg:pb-10">
+      {% for message in messages %}
+        <div role="status" class="mb-4 flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-sm shadow-sm">
+          <i class="fa-solid fa-circle-check text-positive"></i>{{ message }}
+        </div>
+      {% endfor %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Primary">
+    <div class="mx-auto grid max-w-md grid-cols-3 items-center px-4">
+      <a href="{% url 'core:dashboard' %}" class="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs {% if request.resolver_match.url_name == 'dashboard' %}font-medium text-accent{% else %}text-muted{% endif %}">
+        <i class="fa-solid fa-chart-pie text-lg"></i>Overview
+      </a>
+      <a href="{% url 'core:transaction_create' %}" aria-label="Add entry" class="-mt-6 mx-auto grid size-14 place-items-center rounded-full bg-accent text-on-accent shadow-lg ring-4 ring-canvas">
+        <i class="fa-solid fa-plus text-xl"></i>
+      </a>
+      <details class="relative text-center">
+        <summary class="flex min-h-14 cursor-pointer list-none flex-col items-center justify-center gap-0.5 text-xs text-muted [&::-webkit-details-marker]:hidden">
+          <i class="fa-solid fa-bars text-lg"></i>Menu
+        </summary>
+        <div class="absolute bottom-16 right-0 w-56 space-y-1 rounded-2xl border border-line bg-surface p-2 text-left text-sm shadow-card">
+          {% include "partials/_prefs.html" %}
+        </div>
+      </details>
     </div>
   </nav>
-  
-  <main class="mx-auto max-w-6xl px-4 py-8">
-    {% for message in messages %}
-      <div class="mb-4 rounded-lg bg-slate-100 px-4 py-3 text-sm">{{ message }}</div>
-    {% endfor %}
-    {% block content %}{% endblock %}
-  </main>
+
+  <script>
+  (() => {
+    const root = document.documentElement;
+    document.querySelectorAll('[data-action="theme"]').forEach((b) => b.addEventListener("click", () => {
+      const dark = root.classList.toggle("dark");
+      try { localStorage.setItem("theme", dark ? "dark" : "light"); } catch (e) {}
+      window.dispatchEvent(new Event("themechange"));
+    }));
+    const syncPrivacy = () => document.querySelectorAll('[data-action="privacy"]').forEach(
+      (b) => b.setAttribute("aria-pressed", String(root.classList.contains("hide-amounts"))));
+    document.querySelectorAll('[data-action="privacy"]').forEach((b) => b.addEventListener("click", () => {
+      const on = root.classList.toggle("hide-amounts");
+      try { localStorage.setItem("hide-amounts", on ? "1" : "0"); } catch (e) {}
+      syncPrivacy();
+    }));
+    syncPrivacy();
+    document.addEventListener("keydown", (e) => {
+      if (e.key.toLowerCase() === "n" && !e.metaKey && !e.ctrlKey && !e.altKey && !/input|textarea|select/i.test(e.target.tagName)) {
+        window.location.href = "{% url 'core:transaction_create' %}";
+      }
+    });
+  })();
+  </script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,23 @@
+{% load money %}
+<div class="reveal min-w-0 rounded-card border border-line bg-surface shadow-card {% if hero %}p-5{% else %}p-4 sm:p-5{% endif %} {{ class }}">
+  <div class="flex items-start justify-between gap-2">
+    <div class="min-w-0">
+      <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">{{ label }}</p>
+      <p class="amount mt-1.5 font-semibold tabular-nums tracking-tight {% if hero %}text-3xl{% else %}text-xl sm:text-3xl{% endif %}" data-count="{{ value|floatformat:'2u' }}">{{ value|money:symbol }}</p>
+    </div>
+    <span class="grid shrink-0 place-items-center rounded-full bg-accent/10 text-accent {% if hero %}size-11{% else %}size-9 sm:size-11{% endif %}">
+      <i class="fa-solid {{ icon }} {% if not hero %}text-sm sm:text-base{% endif %}"></i>
+    </span>
+  </div>
+  <p class="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+    {% if delta %}
+      <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium {% if delta.good %}bg-positive/10 text-positive{% else %}bg-negative/10 text-negative{% endif %}">
+        <i class="fa-solid {% if delta.up %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>{{ delta.pct }}%
+      </span>
+      <span class="text-muted {% if not hero %}hidden sm:inline{% endif %}">vs last month</span>
+    {% else %}
+      <span class="text-muted">No prior month</span>
+    {% endif %}
+    {% if footnote %}<span class="text-muted">· {{ footnote }}</span>{% endif %}
+  </p>
+</div>

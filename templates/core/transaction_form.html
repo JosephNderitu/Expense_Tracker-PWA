@@ -3,9 +3,14 @@
 {% block title %}Add entry{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-lg">
-  <h1 class="mb-4 text-xl font-semibold">Add entry <span class="text-sm font-normal text-slate-500">· {{ workspace.name }}</span></h1>
-  <form method="post" class="space-y-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+  <div class="mb-4 inline-flex rounded-full border border-line bg-surface p-1 text-sm" role="group" aria-label="Add to">
+    <a href="?workspace=household" class="inline-flex min-h-10 items-center gap-2 rounded-full px-4 font-medium {% if workspace.type == 'household' %}bg-household text-on-accent{% else %}text-muted hover:text-ink{% endif %}"><i class="fa-solid fa-house"></i>Household</a>
+    <a href="?workspace=work" class="inline-flex min-h-10 items-center gap-2 rounded-full px-4 font-medium {% if workspace.type == 'work' %}bg-work text-on-accent{% else %}text-muted hover:text-ink{% endif %}"><i class="fa-solid fa-truck"></i>Work</a>
+  </div>
+  <h1 class="mb-4 text-xl font-semibold tracking-tight">Add entry</h1>
+  <form method="post" class="space-y-4 rounded-2xl p-6 shadow-sm ring-1 border-line bg-surface">
     {% csrf_token %}
+      <input type="hidden" name="workspace" value="{{ workspace.type }}">
     {% if form.non_field_errors %}
       <div class="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{{ form.non_field_errors.0 }}</div>
     {% endif %}
@@ -19,7 +24,7 @@
     {% include "accounts/_field.html" with field=form.payment_method %}
     {% include "accounts/_field.html" with field=form.note %}
     <div class="flex gap-3">
-      <button class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 {% if active_workspace == 'work' %}bg-work{% else %}bg-household{% endif %}">Save</button>
+      <button class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 {% if workspace.type == 'work' %}bg-work{% else %}bg-household{% endif %}">Save</button>
       <button name="another" value="1" class="flex-1 rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200">Save and add another</button>
     </div>
   </form>
