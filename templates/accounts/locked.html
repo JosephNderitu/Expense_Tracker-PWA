@@ -1,0 +1,8 @@
+{# templates/accounts/locked.html #}
+{% extends "accounts/auth_base.html" %}
+{% block title %}Too many attempts{% endblock %}
+{% block heading %}Too many attempts{% endblock %}
+{% block content %}
+<p class="text-sm text-slate-600">Login is paused for 30 minutes after repeated failed attempts. Try again later, or reset your password if you have forgotten it.</p>
+<a href="{% url 'accounts:password_reset' %}" class="mt-4 block text-center text-sm text-slate-600 hover:underline">Reset password</a>
+{% endblock %}

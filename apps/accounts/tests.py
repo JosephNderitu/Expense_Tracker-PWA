@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from django.core.cache import cache
 
 User = get_user_model()
 PASSWORD = "S3curePass!x"
@@ -13,8 +14,23 @@ PASSWORD = "S3curePass!x"
 
 class AuthFlowTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user("owner@example.com", PASSWORD)
+        User = get_user_model()
+        user = User.objects.create_user("owner@example.com", "S3curePass!x")
+        self.client.force_login(user)
+        cache.clear()
 
+    def test_login_locks_after_five_failures(self):
+        for _ in range(5):
+            self.client.post(reverse("accounts:login"), {"username": "owner@example.com", "password": "bad"})
+        resp = self.client.post(reverse("accounts:login"), {"username": "owner@example.com", "password": PASSWORD})
+        self.assertEqual(resp.status_code, 429)
+
+    def test_reset_requests_are_rate_limited(self):
+        for _ in range(5):
+            self.client.post(reverse("accounts:password_reset"), {"email": "owner@example.com"})
+        resp = self.client.post(reverse("accounts:password_reset"), {"email": "owner@example.com"})
+        self.assertEqual(resp.status_code, 403)
+        
     def test_dashboard_requires_login(self):
         resp = self.client.get(reverse("core:dashboard"))
         self.assertRedirects(
