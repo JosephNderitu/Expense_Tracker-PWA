@@ -153,13 +153,18 @@
         <h2 id="recent-title" class="text-sm font-semibold uppercase tracking-wider text-muted">Recent activity</h2>
         <ul role="list" class="mt-3 divide-y divide-line">
           {% for t in recent %}
-            <li class="flex items-center gap-3 py-3">
-              <span class="grid size-10 shrink-0 place-items-center rounded-full text-white" style="background: {{ t.category.color }}"><i class="fa-solid {{ t.category.icon }} text-sm"></i></span>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium">{{ t.note|default:t.category.name }}</p>
-                <p class="truncate text-xs text-muted">{{ t.date|date:"M j" }} · {{ t.category.name }}{% if scope == "all" %} · {{ t.workspace.name }}{% endif %}</p>
-              </div>
-              <p class="amount text-sm font-semibold tabular-nums {% if t.direction == 'in' %}text-positive{% endif %}">{% if t.direction == 'in' %}+{% else %}-{% endif %}{{ t.base_amount|money:symbol }}</p>
+            <li>
+              <a href="{% url 'core:transaction_detail' t.pk %}" class="-mx-2 flex items-center gap-3 rounded-xl px-2 py-3 hover:bg-line/50">
+                <span class="grid size-10 shrink-0 place-items-center rounded-full text-white" style="background: {{ t.category.color }}"><i class="fa-solid {{ t.category.icon }} text-sm"></i></span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium">{{ t.note|default:t.category.name }}</p>
+                  <p class="truncate text-xs text-muted">
+                    {{ t.date|date:"M j" }} · {{ t.category.name }}{% if scope == "all" %} · {{ t.workspace.name }}{% endif %}
+                    {% if t.num_files %} · <i class="fa-solid fa-paperclip"></i> {{ t.num_files }}{% endif %}
+                  </p>
+                </div>
+                <p class="amount text-sm font-semibold tabular-nums {% if t.direction == 'in' %}text-positive{% endif %}">{% if t.direction == 'in' %}+{% else %}-{% endif %}{{ t.base_amount|money:symbol }}</p>
+              </a>
             </li>
           {% endfor %}
         </ul>

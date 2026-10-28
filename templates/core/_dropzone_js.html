@@ -1,0 +1,54 @@
+{# templates/core/_dropzone_js.html #}
+<script>
+(() => {
+  const MAX_BYTES = 10 * 1024 * 1024, MAX_FILES = 5;
+  const allowed = /\.(pdf|jpe?g|png|webp|heic|docx|xlsx|csv|txt)$/i;
+  const input = document.getElementById("id_attachments");
+  const camera = document.getElementById("camera-input");
+  const zone = document.getElementById("dropzone");
+  const list = document.getElementById("file-list");
+  const note = document.getElementById("file-error");
+  if (!input) return;
+
+  const bucket = new DataTransfer();
+  const sizeLabel = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+
+  function setFiles(files) {
+    bucket.items.clear();
+    files.forEach((f) => bucket.items.add(f));
+    input.files = bucket.files;
+    list.innerHTML = "";
+    files.forEach((f, i) => {
+      const li = document.createElement("li");
+      li.className = "flex items-center gap-3 rounded-lg border border-line px-3 py-1.5 text-sm";
+      li.innerHTML = '<i class="fa-solid fa-paperclip text-muted"></i><span class="min-w-0 flex-1 truncate"></span><span class="text-xs text-muted"></span>' +
+        '<button type="button" class="grid size-9 place-items-center rounded-full text-muted hover:bg-line/50 hover:text-negative" aria-label="Remove file"><i class="fa-solid fa-xmark"></i></button>';
+      li.children[1].textContent = f.name;
+      li.children[2].textContent = sizeLabel(f.size);
+      li.children[3].addEventListener("click", () => setFiles([...bucket.files].filter((_, j) => j !== i)));
+      list.appendChild(li);
+    });
+  }
+
+  function add(incoming) {
+    const files = [...bucket.files];
+    const errors = [];
+    for (const f of incoming) {
+      if (!allowed.test(f.name)) errors.push(f.name + ": file type not allowed");
+      else if (f.size > MAX_BYTES) errors.push(f.name + ": larger than 10 MB");
+      else if (files.some((x) => x.name === f.name && x.size === f.size)) continue;
+      else if (files.length >= MAX_FILES) { errors.push("Only " + MAX_FILES + " files at a time"); break; }
+      else files.push(f);
+    }
+    setFiles(files);
+    note.textContent = errors.join(". ");
+    note.classList.toggle("hidden", errors.length === 0);
+  }
+
+  input.addEventListener("change", () => add([...input.files]));
+  if (camera) camera.addEventListener("change", () => { add([...camera.files]); camera.value = ""; });
+  ["dragenter", "dragover"].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("border-accent", "bg-accent/5"); }));
+  ["dragleave", "drop"].forEach((ev) => zone.addEventListener(ev, () => zone.classList.remove("border-accent", "bg-accent/5")));
+  zone.addEventListener("drop", (e) => { e.preventDefault(); add([...e.dataTransfer.files]); });
+})();
+</script>

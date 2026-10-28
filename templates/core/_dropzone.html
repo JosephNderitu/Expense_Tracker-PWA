@@ -1,0 +1,18 @@
+{# templates/core/_dropzone.html #}
+<div id="dropzone" class="rounded-xl border-2 border-dashed border-line bg-canvas/50 p-5 text-center transition">
+  <div class="flex flex-wrap items-center justify-center gap-2">
+    {{ form.attachments }}
+    <label for="{{ form.attachments.id_for_label }}" class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full bg-accent/10 px-4 text-sm font-medium text-accent hover:bg-accent/15 peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
+      <i class="fa-solid fa-file-arrow-up"></i>Choose files
+    </label>
+    <label class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-4 text-sm font-medium text-muted hover:bg-line/50 sm:hidden">
+      <i class="fa-solid fa-camera"></i>Take photo
+      <input id="camera-input" type="file" accept="image/*" capture="environment" class="sr-only">
+    </label>
+  </div>
+  <p class="mt-2 text-xs text-muted">PDF, photos, Word, Excel, CSV or text. Up to 5 files at a time, 10 MB each. You can also drag and drop.</p>
+</div>
+<ul id="file-list" class="mt-3 space-y-2"></ul>
+<p id="file-error" role="alert" class="mt-2 hidden text-sm text-negative"></p>
+{% for error in form.attachments.errors %}<p class="mt-2 text-sm text-negative">{{ error }}</p>{% endfor %}
+<div class="mt-3">{% include "accounts/_field.html" with field=form.attachment_kind %}</div>

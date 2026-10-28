@@ -1,0 +1,121 @@
+{# templates/core/transaction_detail.html #}
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Entry{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <a href="{% url 'core:dashboard' %}" class="inline-flex min-h-11 items-center gap-2 text-sm text-muted hover:text-ink">
+    <i class="fa-solid fa-arrow-left"></i>Back to overview
+  </a>
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card">
+    <div class="flex items-start justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <span class="grid size-12 shrink-0 place-items-center rounded-full text-white" style="background: {{ entry.category.color }}"><i class="fa-solid {{ entry.category.icon }}"></i></span>
+        <div class="min-w-0">
+          <p class="text-sm text-muted">{{ entry.category.name }} · {{ entry.workspace.name }}</p>
+          <p class="amount text-3xl font-semibold tabular-nums {% if entry.direction == 'in' %}text-positive{% endif %}">{% if entry.direction == 'in' %}+{% else %}-{% endif %}{{ entry.amount|money:entry_symbol }}</p>
+        </div>
+      </div>
+      <span class="shrink-0 rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">{{ entry.get_direction_display }}</span>
+    </div>
+    <dl class="mt-6 grid gap-4 text-sm sm:grid-cols-2">
+      <div><dt class="text-muted">Date</dt><dd class="font-medium">{{ entry.date|date:"l, F j, Y" }}</dd></div>
+      <div><dt class="text-muted">Payment method</dt><dd class="font-medium">{{ entry.get_payment_method_display }}</dd></div>
+      {% if display_rate %}
+        <div class="sm:col-span-2">
+          <dt class="text-muted">Converted</dt>
+          <dd class="amount font-medium">{{ entry.base_amount|money:base_symbol }} <span class="font-normal text-muted">at {{ display_rate }} {{ entry.currency }} per 1 {{ entry.workspace.currency }}</span></dd>
+        </div>
+      {% endif %}
+      {% if entry.note %}<div class="sm:col-span-2"><dt class="text-muted">Note</dt><dd>{{ entry.note }}</dd></div>{% endif %}
+    </dl>
+  </section>
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card" aria-labelledby="files-title">
+    <h2 id="files-title" class="text-sm font-semibold uppercase tracking-wider text-muted">Documents <span class="font-normal">({{ attachments|length }})</span></h2>
+    {% if attachments %}
+      <ul class="mt-4 grid gap-4 sm:grid-cols-2">
+        {% for a in attachments %}
+          <li class="overflow-hidden rounded-xl border border-line">
+            {% if a.is_image %}
+              <button type="button" data-preview="{% url 'core:attachment_file' a.pk %}" data-kind="image" data-title="{{ a.original_name }}" class="block aspect-video w-full bg-line/40">
+                <img src="{% url 'core:attachment_file' a.pk %}" alt="Preview of {{ a.original_name }}" loading="lazy" class="size-full object-cover">
+              </button>
+            {% elif a.is_pdf %}
+              <button type="button" data-preview="{% url 'core:attachment_file' a.pk %}" data-kind="pdf" data-title="{{ a.original_name }}" class="grid aspect-video w-full place-items-center bg-line/40 text-muted hover:text-accent" aria-label="Preview {{ a.original_name }}">
+                <i class="fa-solid fa-file-pdf text-4xl"></i>
+              </button>
+            {% else %}
+              <div class="grid aspect-video w-full place-items-center bg-line/40 text-muted"><i class="fa-solid {{ a.icon }} text-4xl"></i></div>
+            {% endif %}
+            <div class="space-y-2 p-3">
+              <p class="truncate text-sm font-medium" title="{{ a.original_name }}">{{ a.original_name }}</p>
+              <p class="text-xs text-muted">{{ a.get_kind_display }} · {{ a.size|filesizeformat }}</p>
+              <div class="flex gap-2">
+                <a href="{% url 'core:attachment_file' a.pk %}?download=1" class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-line/60 text-sm font-medium hover:bg-line">
+                  <i class="fa-solid fa-download"></i>Download
+                </a>
+                <form method="post" action="{% url 'core:attachment_delete' a.pk %}" onsubmit="return confirm('Remove this file? This cannot be undone.')">
+                  {% csrf_token %}
+                  <button class="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-negative hover:bg-negative/10" aria-label="Delete {{ a.original_name }}">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="mt-3 text-sm text-muted">No documents yet. Add a receipt, invoice or any file below.</p>
+    {% endif %}
+  </section>
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card" aria-labelledby="add-title">
+    <h2 id="add-title" class="text-sm font-semibold uppercase tracking-wider text-muted">Add documents</h2>
+    {% if can_add %}
+      <form method="post" enctype="multipart/form-data" class="mt-4 space-y-3">
+        {% csrf_token %}
+        {% include "core/_dropzone.html" %}
+        <button class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90">
+          <i class="fa-solid fa-upload"></i>Upload
+        </button>
+      </form>
+    {% else %}
+      <p class="mt-3 text-sm text-muted">This entry already has the maximum of 10 documents. Remove one to add another.</p>
+    {% endif %}
+  </section>
+</div>
+
+<dialog id="preview" class="m-auto w-[min(92vw,56rem)] rounded-card border border-line bg-surface p-0 text-ink shadow-card backdrop:bg-black/60">
+  <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
+    <p id="preview-title" class="truncate text-sm font-medium"></p>
+    <button type="button" id="preview-close" class="grid size-10 place-items-center rounded-full hover:bg-line/50" aria-label="Close preview"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div id="preview-body" class="max-h-[78vh] overflow-auto"></div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+{% include "core/_dropzone_js.html" %}
+<script>
+(() => {
+  const dialog = document.getElementById("preview");
+  const body = document.getElementById("preview-body");
+  document.querySelectorAll("[data-preview]").forEach((btn) => btn.addEventListener("click", () => {
+    const el = document.createElement(btn.dataset.kind === "pdf" ? "iframe" : "img");
+    el.src = btn.dataset.preview;
+    el.className = btn.dataset.kind === "pdf" ? "h-[78vh] w-full" : "mx-auto max-h-[78vh]";
+    if (btn.dataset.kind !== "pdf") el.alt = btn.dataset.title;
+    body.replaceChildren(el);
+    document.getElementById("preview-title").textContent = btn.dataset.title;
+    dialog.showModal();
+  }));
+  document.getElementById("preview-close").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener("close", () => body.replaceChildren());
+})();
+</script>
+{% endblock %}

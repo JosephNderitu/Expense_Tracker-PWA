@@ -8,3 +8,4 @@ __pycache__/
 *.pyc
 assets/
 .django_tailwind_cli/
+private_media/

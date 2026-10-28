@@ -2,7 +2,11 @@
 from decimal import Decimal
 
 from django import forms
+from django.core.exceptions import ValidationError
+from django.db import transaction as db_transaction
 
+from .models import Attachment, Transaction
+from .validators import ACCEPT, MAX_PER_ENTRY, clean_uploads
 from .constants import SUPPORTED_CURRENCIES
 from .models import Transaction
 
@@ -18,6 +22,24 @@ class StyledFormMixin:
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", INPUT)
 
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("widget", MultipleFileInput())
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        single_clean = super().clean
+        if isinstance(data, (list, tuple)):
+            return [single_clean(d, initial) for d in data]
+        return [single_clean(data, initial)]
+
+
+def _file_widget():
+    return MultipleFileInput(attrs={"accept": ACCEPT, "class": "peer sr-only"})
 
 class TransactionForm(StyledFormMixin, forms.ModelForm):
     currency = forms.ChoiceField(choices=SUPPORTED_CURRENCIES)
@@ -57,3 +79,28 @@ class TransactionForm(StyledFormMixin, forms.ModelForm):
         else:
             self.instance.rate_to_base = Decimal("1")
         return cleaned
+    
+class AttachmentUploadForm(StyledFormMixin, forms.Form):
+    attachments = MultipleFileField(required=False, widget=_file_widget())
+    attachment_kind = forms.ChoiceField(choices=Attachment.Kind.choices, initial=Attachment.Kind.RECEIPT, label="Document type")
+
+    def __init__(self, *args, transaction, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.transaction = transaction
+
+    def clean_attachments(self):
+        files = clean_uploads(self.cleaned_data.get("attachments"))
+        if not files:
+            raise ValidationError("Choose at least one file.")
+        if self.transaction.attachments.count() + len(files) > MAX_PER_ENTRY:
+            raise ValidationError(f"An entry can hold up to {MAX_PER_ENTRY} files.")
+        return files
+
+    def save(self):
+        files = self.cleaned_data["attachments"]
+        with db_transaction.atomic():
+            for upload in files:
+                Attachment.objects.create(
+                    transaction=self.transaction, file=upload, kind=self.cleaned_data["attachment_kind"]
+                )
+        return len(files)

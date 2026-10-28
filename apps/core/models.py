@@ -1,5 +1,10 @@
 # apps/core/models.py
 from decimal import Decimal
+import uuid
+from pathlib import Path
+
+from .storage import get_private_storage
+from .validators import CONTENT_TYPES
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -112,3 +117,59 @@ class Transaction(TimeStampedModel):
         if self.currency == self.workspace.currency:
             self.rate_to_base = Decimal("1")
         super().save(*args, **kwargs)
+        
+
+def attachment_path(instance, filename):
+    ext = Path(filename).suffix.lower()
+    now = timezone.now()
+    return f"{instance.transaction.workspace.owner_id}/{now:%Y/%m}/{uuid.uuid4().hex}{ext}"
+
+
+class Attachment(TimeStampedModel):
+    class Kind(models.TextChoices):
+        RECEIPT = "receipt", "Receipt"
+        INVOICE = "invoice", "Invoice"
+        DOCUMENT = "document", "Document"
+
+    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField(upload_to=attachment_path, storage=get_private_storage, max_length=255)
+    original_name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100)
+    size = models.PositiveIntegerField()
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.RECEIPT)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return self.original_name
+
+    def save(self, *args, **kwargs):
+        if self.file and not self.original_name:
+            name = Path(self.file.name).name
+            self.original_name = name[:255]
+            self.size = self.file.size
+            self.content_type = CONTENT_TYPES.get(Path(name).suffix.lower(), "application/octet-stream")
+        super().save(*args, **kwargs)
+
+    @property
+    def is_image(self):
+        return self.content_type in {"image/jpeg", "image/png", "image/webp"}
+
+    @property
+    def is_pdf(self):
+        return self.content_type == "application/pdf"
+
+    @property
+    def icon(self):
+        if self.content_type.startswith("image/"):
+            return "fa-file-image"
+        return {
+            "application/pdf": "fa-file-pdf",
+            "text/csv": "fa-file-csv",
+            "text/plain": "fa-file-lines",
+        }.get(self.content_type) or (
+            "fa-file-word" if "wordprocessingml" in self.content_type
+            else "fa-file-excel" if "spreadsheetml" in self.content_type
+            else "fa-file"
+        )

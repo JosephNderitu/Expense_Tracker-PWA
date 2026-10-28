@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import DecimalField, ExpressionWrapper, F, Max, Q, Sum
+from django.db.models import DecimalField, ExpressionWrapper, F, Max, Q, Sum, Count
 from django.db.models.functions import TruncMonth
 
 from .constants import CURRENCY_SYMBOLS
@@ -112,7 +112,9 @@ def dashboard_data(user, scope, month_start):
         "spent_delta": _delta(spent, p_spent, higher_is_better=False),
         "saved_delta": _delta(saved, p_saved, higher_is_better=True),
         "categories": categories,
-        "recent": qs.select_related("category", "workspace").order_by("-date", "-id")[:6],
+        "recent": qs.select_related("category", "workspace")
+            .annotate(num_files=Count("attachments"))
+            .order_by("-date", "-id")[:6],
         "chart_data": {
             "symbol": symbol, "labels": labels, "fullLabels": full_labels,
             "earned": earned, "spent": spending, "saved": saved_line,
