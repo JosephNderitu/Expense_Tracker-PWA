@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Entries{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Entries</h1>
+      <p class="text-sm text-muted">
+        {% if scope == "all" %}Household and work{% elif scope == "household" %}Household{% else %}Work{% endif %}
+        · {{ count }} {% if count == 1 %}entry{% else %}entries{% endif %}
+      </p>
+    </div>
+    <div class="flex items-center gap-2 text-sm">
+      <a href="{% url 'core:transaction_trash' %}" class="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-muted hover:bg-line/50 hover:text-ink">
+        <i class="fa-solid fa-trash-can-arrow-up"></i>Recently deleted
+      </a>
+      <a href="{% url 'core:transaction_create' %}" class="hidden min-h-10 items-center gap-2 rounded-full bg-accent px-4 font-medium text-on-accent hover:opacity-90 lg:inline-flex">
+        <i class="fa-solid fa-plus"></i>Add entry
+      </a>
+    </div>
+  </div>
+
+  {% if undo_entry %}
+    <div role="status" class="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-2 text-sm shadow-sm">
+      <i class="fa-solid fa-trash text-muted"></i>
+      <p class="flex-1">Deleted <strong>{{ undo_entry.category.name }}</strong> from {{ undo_entry.date|date:"M j" }}.</p>
+      <form method="post" action="{% url 'core:transaction_restore' undo_entry.pk %}">
+        {% csrf_token %}
+        <button class="min-h-10 rounded-lg px-3 font-medium text-accent hover:bg-accent/10">Undo</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {% if mixed_currency %}
+    <div role="alert" class="flex items-start gap-3 rounded-xl border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">
+      <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+      <p>Household and Work use different currencies, so the totals below are hidden. Pick one workspace in the switch above.</p>
+    </div>
+  {% else %}
+    <div class="grid grid-cols-3 gap-3">
+      <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+        <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Money in</p>
+        <p class="amount mt-1 truncate text-base font-semibold tabular-nums text-positive sm:text-xl">{{ income|money:symbol }}</p>
+      </div>
+      <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+        <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Money out</p>
+        <p class="amount mt-1 truncate text-base font-semibold tabular-nums sm:text-xl">{{ spent|money:symbol }}</p>
+      </div>
+      <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+        <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Net</p>
+        <p class="amount mt-1 truncate text-base font-semibold tabular-nums sm:text-xl">{{ net|money:symbol }}</p>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible" aria-label="Quick date ranges">
+    {% for r in quick_ranges %}
+      <a href="{{ r.url }}" class="inline-flex min-h-10 shrink-0 items-center rounded-full border px-4 text-sm font-medium {% if r.active %}border-accent bg-accent/10 text-accent{% else %}border-line text-muted hover:text-ink{% endif %}">{{ r.label }}</a>
+    {% endfor %}
+  </div>
+
+  <details id="filters" class="rounded-card border border-line bg-surface shadow-card" {% if active_filters %}open{% endif %}>
+    <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-medium lg:hidden [&::-webkit-details-marker]:hidden">
+      <span><i class="fa-solid fa-sliders mr-2 text-accent"></i>Filters{% if active_filters %} <span class="ml-1 rounded-full bg-accent px-2 py-0.5 text-xs text-on-accent">{{ active_filters|length }}</span>{% endif %}</span>
+      <i class="fa-solid fa-chevron-down text-xs text-muted"></i>
+    </summary>
+    <form method="get" class="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+      {% for field in filter.form %}
+        <div {% if field.name == "q" %}class="sm:col-span-2"{% endif %}>{% include "accounts/_field.html" with field=field %}</div>
+      {% endfor %}
+      <div class="space-y-1.5">
+        <label for="per_page" class="block text-sm font-medium text-slate-700 dark:text-muted">Per page</label>
+        <select id="per_page" name="per_page" class="block w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm">
+          {% for n in per_page_options %}<option value="{{ n }}" {% if n == per_page %}selected{% endif %}>{{ n }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-1">
+        <button class="min-h-11 flex-1 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90">Apply</button>
+        <a href="{% url 'core:transaction_list' %}" class="grid min-h-11 place-items-center rounded-lg px-4 text-sm font-medium text-muted hover:bg-line/50">Clear</a>
+      </div>
+    </form>
+  </details>
+
+  {% if active_filters %}
+    <ul class="flex flex-wrap gap-2" aria-label="Active filters">
+      {% for chip in active_filters %}
+        <li>
+          <a href="{{ chip.remove }}" class="inline-flex min-h-9 items-center gap-2 rounded-full bg-accent/10 px-3 text-xs font-medium text-accent hover:bg-accent/15" aria-label="Remove filter {{ chip.label }}">
+            <span class="text-muted">{{ chip.label }}:</span> {{ chip.value }} <i class="fa-solid fa-xmark"></i>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <section class="rounded-card border border-line bg-surface p-2 shadow-card sm:p-3">
+    {% if transactions %}
+      <ul role="list" class="divide-y divide-line">
+        {% for t in transactions %}
+          <li>
+            <a href="{% url 'core:transaction_detail' t.pk %}" class="grid grid-cols-12 items-center gap-x-3 rounded-xl px-3 py-3 hover:bg-line/50">
+              <span class="col-span-8 flex min-w-0 items-center gap-3 md:col-span-5">
+                <span class="grid size-10 shrink-0 place-items-center rounded-full text-white" style="background: {{ t.category.color }}"><i class="fa-solid {{ t.category.icon }} text-sm"></i></span>
+                <span class="min-w-0">
+                  <span class="block truncate text-sm font-medium">{{ t.note|default:t.category.name }}</span>
+                  <span class="block truncate text-xs text-muted"><span class="md:hidden">{{ t.date|date:"M j" }} · </span>{{ t.category.name }}{% if scope == "all" %} · {{ t.workspace.name }}{% endif %}{% if t.has_files %} · <i class="fa-solid fa-paperclip"></i>{% endif %}</span>
+                </span>
+              </span>
+              <span class="hidden text-sm text-muted md:col-span-2 md:block">{{ t.date|date:"M j, Y" }}</span>
+              <span class="hidden text-sm text-muted md:col-span-2 md:block">{{ t.get_payment_method_display }}</span>
+              <span class="col-span-4 text-right md:col-span-3">
+                <span class="amount block text-sm font-semibold tabular-nums {% if t.direction == 'in' %}text-positive{% endif %}">{% if t.direction == 'in' %}+{% else %}-{% endif %}{{ t.base_total|money_in:t.workspace.currency }}</span>
+                {% if t.currency != t.workspace.currency %}<span class="amount block text-xs text-muted">{{ t.amount|floatformat:2 }} {{ t.currency }}</span>{% endif %}
+              </span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% elif active_filters %}
+      <div class="p-10 text-center">
+        <span class="mx-auto grid size-14 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-filter-circle-xmark text-xl"></i></span>
+        <h2 class="mt-4 text-lg font-semibold">No entries match</h2>
+        <p class="mt-1 text-sm text-muted">Try widening the date range or removing a filter.</p>
+        <a href="{% url 'core:transaction_list' %}" class="mt-4 inline-flex min-h-11 items-center rounded-full bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90">Clear filters</a>
+      </div>
+    {% else %}
+      <div class="p-10 text-center">
+        <span class="mx-auto grid size-14 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-receipt text-xl"></i></span>
+        <h2 class="mt-4 text-lg font-semibold">No entries yet</h2>
+        <p class="mt-1 text-sm text-muted">Everything you add shows up here, searchable and filterable.</p>
+        <a href="{% url 'core:transaction_create' %}" class="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-plus"></i>Add an entry</a>
+      </div>
+    {% endif %}
+  </section>
+
+  {% if is_paginated %}
+    <nav class="flex flex-col items-center justify-between gap-3 text-sm sm:flex-row" aria-label="Pagination">
+      <p class="text-muted">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ paginator.count }}</p>
+      <div class="flex items-center gap-1">
+        {% if page_obj.has_previous %}
+          <a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.previous_page_number }}" class="grid size-10 place-items-center rounded-full hover:bg-line/50" aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></a>
+        {% endif %}
+        {% for p in page_range %}
+          {% if p == paginator.ELLIPSIS %}
+            <span class="px-1 text-muted">…</span>
+          {% elif p == page_obj.number %}
+            <span aria-current="page" class="grid size-10 place-items-center rounded-full bg-accent font-medium text-on-accent">{{ p }}</span>
+          {% else %}
+            <a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ p }}" class="grid size-10 place-items-center rounded-full hover:bg-line/50">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+          <a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.next_page_number }}" class="grid size-10 place-items-center rounded-full hover:bg-line/50" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></a>
+        {% endif %}
+      </div>
+    </nav>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const details = document.getElementById("filters");
+  const wide = matchMedia("(min-width: 1024px)");
+  const sync = () => { if (wide.matches) details.open = true; };
+  sync();
+  wide.addEventListener("change", sync);
+})();
+</script>
+{% endblock %}

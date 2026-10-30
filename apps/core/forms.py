@@ -9,6 +9,7 @@ from .models import Attachment, Transaction
 from .validators import ACCEPT, MAX_PER_ENTRY, clean_uploads
 from .constants import SUPPORTED_CURRENCIES
 from .models import Transaction
+from django.db.models import Q
 
 INPUT = (
     "block w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm "
@@ -62,10 +63,17 @@ class TransactionForm(StyledFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.workspace = workspace
         self.instance.workspace = workspace
-        self.fields["category"].queryset = workspace.categories.filter(is_active=True)
-        self.fields["exchange_rate"].label = f"Exchange rate: how many of this currency equal 1 {workspace.currency}"
-        if not self.instance.pk:
+        categories = workspace.categories.filter(is_active=True)
+        if self.instance.pk:   # editing: no file fields, and keep a now-hidden category selectable
+            categories = workspace.categories.filter(Q(is_active=True) | Q(pk=self.instance.category_id))
+            self.fields.pop("attachments", None)
+            self.fields.pop("attachment_kind", None)
+            if self.instance.currency != workspace.currency and self.instance.rate_to_base:
+                self.initial["exchange_rate"] = (Decimal(1) / self.instance.rate_to_base).quantize(Decimal("0.0001"))
+        else:
             self.initial["currency"] = workspace.currency
+        self.fields["category"].queryset = categories
+        self.fields["exchange_rate"].label = f"Exchange rate: how many of this currency equal 1 {workspace.currency}"
 
     def clean(self):
         cleaned = super().clean()

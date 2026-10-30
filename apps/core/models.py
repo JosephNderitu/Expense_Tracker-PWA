@@ -65,6 +65,9 @@ class Category(TimeStampedModel):
 
 KIND_TO_DIRECTION = {Category.Kind.EXPENSE: "out", Category.Kind.INCOME: "in"}
 
+class ActiveTransactionManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
 
 class Transaction(TimeStampedModel):
     class Direction(models.TextChoices):
@@ -93,7 +96,11 @@ class Transaction(TimeStampedModel):
     payment_method = models.CharField(max_length=10, choices=Method.choices, default=Method.CASH)
     note = models.CharField(max_length=255, blank=True)
     source = models.CharField(max_length=10, choices=Source.choices, default=Source.MANUAL)
-
+    deleted_at = models.DateTimeField(null=True, blank=True, editable=False, db_index=True)
+    
+    objects = ActiveTransactionManager()
+    all_objects = models.Manager()
+    
     class Meta:
         ordering = ["-date", "-id"]
         indexes = [

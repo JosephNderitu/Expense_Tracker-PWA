@@ -32,6 +32,10 @@
          class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if request.resolver_match.url_name == 'dashboard' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
         <i class="fa-solid fa-chart-pie w-5 text-center"></i>Overview
       </a>
+      <a href="{% url 'core:transaction_list' %}" {% if request.resolver_match.url_name == 'transaction_list' %}aria-current="page"{% endif %}
+         class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if request.resolver_match.url_name == 'transaction_list' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+        <i class="fa-solid fa-list w-5 text-center"></i>Entries
+      </a>
       <a href="{% url 'core:transaction_create' %}" {% if request.resolver_match.url_name == 'transaction_create' %}aria-current="page"{% endif %}
          class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if request.resolver_match.url_name == 'transaction_create' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
         <i class="fa-solid fa-plus w-5 text-center"></i>Add entry
@@ -64,13 +68,18 @@
     </main>
   </div>
 
+  <a href="{% url 'core:transaction_create' %}" aria-label="Add entry"
+     class="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-accent text-on-accent shadow-lg lg:hidden">
+    <i class="fa-solid fa-plus text-xl"></i>
+  </a>
+
   <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Primary">
     <div class="mx-auto grid max-w-md grid-cols-3 items-center px-4">
       <a href="{% url 'core:dashboard' %}" class="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs {% if request.resolver_match.url_name == 'dashboard' %}font-medium text-accent{% else %}text-muted{% endif %}">
         <i class="fa-solid fa-chart-pie text-lg"></i>Overview
       </a>
-      <a href="{% url 'core:transaction_create' %}" aria-label="Add entry" class="-mt-6 mx-auto grid size-14 place-items-center rounded-full bg-accent text-on-accent shadow-lg ring-4 ring-canvas">
-        <i class="fa-solid fa-plus text-xl"></i>
+      <a href="{% url 'core:transaction_list' %}" class="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs {% if request.resolver_match.url_name == 'transaction_list' %}font-medium text-accent{% else %}text-muted{% endif %}">
+        <i class="fa-solid fa-list text-lg"></i>Entries
       </a>
       <details class="relative text-center">
         <summary class="flex min-h-14 cursor-pointer list-none flex-col items-center justify-center gap-0.5 text-xs text-muted [&::-webkit-details-marker]:hidden">

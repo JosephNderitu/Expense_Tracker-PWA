@@ -13,3 +13,6 @@ class CategoryAdmin(admin.ModelAdmin):
 class TransactionAdmin(admin.ModelAdmin):
     list_display = ("date", "category", "amount", "currency", "direction", "workspace")
     list_filter = ("workspace", "direction", "currency")
+    
+    def get_queryset(self, request):
+        return Transaction.all_objects.all()

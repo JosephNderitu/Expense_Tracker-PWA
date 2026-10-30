@@ -59,3 +59,8 @@ def get_active_workspace(request):
     ws_type = choice if choice in ("household", "work") else (scope if scope != "all" else "household")
     ensure_workspaces(request.user)
     return Workspace.objects.get(owner=request.user, type=ws_type)
+
+def scoped_workspaces(request):
+    qs = Workspace.objects.filter(owner=request.user)
+    scope = get_scope(request)
+    return qs if scope == "all" else qs.filter(type=scope)
