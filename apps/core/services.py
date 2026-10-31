@@ -22,7 +22,6 @@ DEFAULT_CATEGORIES = {
         ("Other income", "income", "fa-plus", "#0d9488"),
     ],
     Workspace.Type.WORK: [
-        ("Freight income", "income", "fa-truck-fast", "#4f46e5"),
         ("Fuel", "expense", "fa-gas-pump", "#f97316"),
         ("Maintenance", "expense", "fa-wrench", "#0ea5e9"),
         ("Tolls and parking", "expense", "fa-road", "#64748b"),

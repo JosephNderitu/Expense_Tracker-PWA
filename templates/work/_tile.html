@@ -1,0 +1,8 @@
+{# templates/work/_tile.html #}
+<a href="{{ url }}" class="flex min-h-24 items-center gap-4 rounded-card border border-line bg-surface p-5 shadow-card transition hover:border-accent">
+  <span class="grid size-12 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid {{ icon }} text-lg"></i></span>
+  <span class="min-w-0">
+    <span class="block font-semibold">{{ title }}</span>
+    <span class="block text-sm text-muted">{{ hint }}</span>
+  </span>
+</a>

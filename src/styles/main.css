@@ -43,7 +43,7 @@
   --color-positive: #4ade80;
   --color-negative: #f87171;
 }
-
+.dark { color-scheme: dark; }
 .hide-amounts .amount { filter: blur(8px); user-select: none; }
 
 @media (prefers-reduced-motion: reduce) {

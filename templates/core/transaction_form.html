@@ -6,7 +6,7 @@
   {% if not editing %}
     <div class="mb-4 inline-flex rounded-full border border-line bg-surface p-1 text-sm" role="group" aria-label="Add to">
       <a href="?workspace=household" class="inline-flex min-h-10 items-center gap-2 rounded-full px-4 font-medium {% if workspace.type == 'household' %}bg-household text-on-accent{% else %}text-muted hover:text-ink{% endif %}"><i class="fa-solid fa-house"></i>Household</a>
-      <a href="?workspace=work" class="inline-flex min-h-10 items-center gap-2 rounded-full px-4 font-medium {% if workspace.type == 'work' %}bg-work text-on-accent{% else %}text-muted hover:text-ink{% endif %}"><i class="fa-solid fa-truck"></i>Work</a>
+      <a href="{% url 'work:add' %}" class="inline-flex min-h-10 items-center gap-2 rounded-full px-4 font-medium {% if workspace.type == 'work' %}bg-work text-on-accent{% else %}text-muted hover:text-ink{% endif %}"><i class="fa-solid fa-truck"></i>Work</a>
     </div>
   {% endif %}
   <h1 class="mb-4 text-xl font-semibold tracking-tight">{% if editing %}Edit entry{% else %}Add entry{% endif %} <span class="text-sm font-normal text-muted">· {{ workspace.name }}</span></h1>

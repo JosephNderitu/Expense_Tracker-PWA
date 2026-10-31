@@ -57,6 +57,8 @@ def switch_workspace(request):
 @login_required
 def transaction_create(request):
     workspace = get_active_workspace(request)
+    if request.method == "GET" and workspace.type == "work" and not request.GET.get("generic"):
+        return redirect("work:add")
     form = TransactionForm(request.POST or None, request.FILES or None, workspace=workspace)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -87,6 +89,8 @@ def transaction_detail(request, pk):
         "entry_symbol": CURRENCY_SYMBOLS.get(entry.currency, f"{entry.currency} "),
         "base_symbol": CURRENCY_SYMBOLS.get(base, f"{base} "),
         "display_rate": display_rate,
+        "fuel": getattr(entry, "fuel", None),
+        "maintenance": getattr(entry, "maintenance", None),
     })
 
 
@@ -216,6 +220,10 @@ def transaction_edit(request, pk):
     entry = get_object_or_404(
         Transaction.objects.select_related("workspace", "category"), pk=pk, workspace__owner=request.user
     )
+    if hasattr(entry, "fuel"):
+        return redirect("work:fuel_edit", pk=entry.pk)
+    if hasattr(entry, "maintenance"):
+        return redirect("work:maintenance_edit", pk=entry.pk)
     form = TransactionForm(request.POST or None, instance=entry, workspace=entry.workspace)
     if request.method == "POST" and form.is_valid():
         form.save()

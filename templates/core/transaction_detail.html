@@ -34,6 +34,20 @@
     <dl class="mt-6 grid gap-4 text-sm sm:grid-cols-2">
       <div><dt class="text-muted">Date</dt><dd class="font-medium">{{ entry.date|date:"l, F j, Y" }}</dd></div>
       <div><dt class="text-muted">Payment method</dt><dd class="font-medium">{{ entry.get_payment_method_display }}</dd></div>
+      
+      {% if fuel %}
+        <div><dt class="text-muted">Fuel</dt><dd class="font-medium">{{ fuel.gallons }} gal at {{ entry_symbol }}{{ fuel.price_per_gallon }}/gal</dd></div>
+        <div><dt class="text-muted">State and station</dt><dd class="font-medium">{{ fuel.state }}{% if fuel.station %} · {{ fuel.station }}{% endif %}</dd></div>
+      {% endif %}
+      {% if maintenance %}
+        <div><dt class="text-muted">Service</dt><dd class="font-medium">{{ maintenance.get_service_type_display }}{% if maintenance.vendor %} · {{ maintenance.vendor }}{% endif %}</dd></div>
+      {% endif %}
+      {% with d=fuel|default:maintenance %}
+        {% if d %}
+          <div><dt class="text-muted">Truck</dt><dd class="font-medium">{{ d.truck.name }}{% if d.odometer %} · {{ d.odometer }} mi{% endif %}</dd></div>
+        {% endif %}
+      {% endwith %}
+
       {% if display_rate %}
         <div class="sm:col-span-2">
           <dt class="text-muted">Converted</dt>

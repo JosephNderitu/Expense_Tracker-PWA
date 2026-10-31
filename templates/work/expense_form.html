@@ -1,0 +1,72 @@
+{# templates/work/expense_form.html #}
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ label }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg space-y-4">
+  <a href="{% if entry %}{% url 'core:transaction_detail' entry.pk %}{% else %}{% url 'work:add' %}{% endif %}" class="inline-flex min-h-11 items-center gap-2 text-sm text-muted hover:text-ink"><i class="fa-solid fa-arrow-left"></i>Back</a>
+  <h1 class="text-xl font-semibold tracking-tight">{% if entry %}Edit{% else %}Add{% endif %} {{ label|lower }}</h1>
+
+  <form method="post" {% if not entry %}enctype="multipart/form-data"{% endif %} class="space-y-4 rounded-card border border-line bg-surface p-6 shadow-card">
+    {% csrf_token %}
+    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+    {% if form.non_field_errors %}<div class="rounded-lg bg-negative/10 px-3.5 py-2.5 text-sm text-negative">{{ form.non_field_errors.0 }}</div>{% endif %}
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% for field in form.visible_fields %}
+        {% if field.name != "attachments" and field.name != "attachment_kind" %}
+          <div {% if field.name == "note" or field.name == "station" or field.name == "vendor" %}class="sm:col-span-2"{% endif %}>
+            {% include "accounts/_field.html" with field=field %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    {% if not entry %}
+      <details class="group rounded-xl border border-line px-4 py-3" {% if form.attachments.errors or form.errors and request.FILES %}open{% endif %}>
+        <summary class="flex min-h-11 cursor-pointer list-none items-center gap-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+          <i class="fa-solid fa-paperclip text-accent"></i>
+          <span class="flex-1">Receipt or documents <span class="font-normal text-muted">(optional)</span></span>
+          <i class="fa-solid fa-chevron-down text-xs text-muted transition group-open:rotate-180"></i>
+        </summary>
+        <div class="mt-3">
+          {% if form.errors and request.FILES %}
+            <p class="mb-3 rounded-lg bg-negative/10 px-3 py-2 text-sm text-negative">Your files were not kept because the form needs fixing. Please attach them again.</p>
+          {% endif %}
+          {% include "core/_dropzone.html" %}
+        </div>
+      </details>
+    {% endif %}
+
+    <div class="flex gap-3">
+      <button class="min-h-11 flex-1 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90">Save</button>
+      {% if entry %}
+        <a href="{% url 'core:transaction_detail' entry.pk %}" class="grid min-h-11 flex-1 place-items-center rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Cancel</a>
+      {% else %}
+        <button name="another" value="1" class="min-h-11 flex-1 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Save and add another</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if kind == "fuel" %}
+<script>
+(() => {
+  const gallons = document.getElementById("id_gallons"), price = document.getElementById("id_price_per_gallon"), total = document.getElementById("id_total");
+  if (!gallons || !price || !total) return;
+  let touched = total.value !== "";
+  total.addEventListener("input", () => { touched = true; });
+  const calc = () => {
+    const v = parseFloat(gallons.value) * parseFloat(price.value);
+    if (!touched && Number.isFinite(v)) total.value = v.toFixed(2);
+  };
+  gallons.addEventListener("input", calc);
+  price.addEventListener("input", calc);
+})();
+</script>
+{% endif %}
+{% if not entry %}{% include "core/_dropzone_js.html" %}{% endif %}
+{% endblock %}

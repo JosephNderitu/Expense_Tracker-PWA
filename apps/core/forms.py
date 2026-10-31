@@ -12,8 +12,8 @@ from .models import Transaction
 from django.db.models import Q
 
 INPUT = (
-    "block w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm "
-    "placeholder-slate-400 focus:border-household focus:outline-none focus:ring-2 focus:ring-household/30"
+    "block w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink "
+    "placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
 )
 
 

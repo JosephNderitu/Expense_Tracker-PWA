@@ -36,6 +36,14 @@
     </div>
   {% endif %}
 
+  {% if scope == "work" %}
+    <div class="reveal grid grid-cols-3 gap-3">
+      <a href="{% url 'work:job_create' %}" class="flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-card border border-line bg-surface p-3 text-sm font-medium shadow-card hover:border-accent"><i class="fa-solid fa-route text-lg text-accent"></i>Add job</a>
+      <a href="{% url 'work:fuel_create' %}" class="flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-card border border-line bg-surface p-3 text-sm font-medium shadow-card hover:border-accent"><i class="fa-solid fa-gas-pump text-lg text-accent"></i>Fuel</a>
+      <a href="{% url 'work:maintenance_create' %}" class="flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-card border border-line bg-surface p-3 text-sm font-medium shadow-card hover:border-accent"><i class="fa-solid fa-wrench text-lg text-accent"></i>Service</a>
+    </div>
+  {% endif %}
+
   {% if not has_any %}
     <div class="reveal rounded-card border border-dashed border-line bg-surface p-10 text-center shadow-card">
       <span class="mx-auto grid size-14 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-seedling text-xl"></i></span>
@@ -48,14 +56,26 @@
   {% else %}
 
     <div class="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-      {% include "core/_kpi.html" with label="Total income" value=income icon="fa-wallet" delta=income_delta %}
-      {% include "core/_kpi.html" with label="Total spent" value=spent icon="fa-credit-card" delta=spent_delta %}
+      {% include "core/_kpi.html" with label=labels.income value=income icon="fa-wallet" delta=income_delta %}
+      {% include "core/_kpi.html" with label=labels.spent value=spent icon="fa-credit-card" delta=spent_delta %}
       {% if saving_rate is not None %}
-        {% include "core/_kpi.html" with label="Saved this month" value=saved icon="fa-piggy-bank" delta=saved_delta hero=True class="order-first col-span-2 md:order-none md:col-span-1" footnote=saving_rate|floatformat:0|add:"% of income" %}
+        {% include "core/_kpi.html" with label=labels.saved value=saved icon="fa-piggy-bank" delta=saved_delta hero=True class="order-first col-span-2 md:order-none md:col-span-1" footnote=saving_rate|floatformat:0|add:"% of income" %}
       {% else %}
-        {% include "core/_kpi.html" with label="Saved this month" value=saved icon="fa-piggy-bank" delta=saved_delta hero=True class="order-first col-span-2 md:order-none md:col-span-1" %}
+        {% include "core/_kpi.html" with label=labels.saved value=saved icon="fa-piggy-bank" delta=saved_delta hero=True class="order-first col-span-2 md:order-none md:col-span-1" %}
       {% endif %}
     </div>
+
+    {% if work_stats %}
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {% for s in work_stats %}
+          <div class="reveal min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+            <p class="flex items-center gap-2 truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs"><i class="fa-solid {{ s.icon }} text-accent"></i>{{ s.label }}</p>
+            <p class="amount mt-1.5 truncate text-lg font-semibold tabular-nums sm:text-2xl">{{ s.value }}</p>
+            <p class="mt-1 truncate text-xs text-muted">{{ s.hint }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
 
     {% if not has_month %}
       <p class="reveal rounded-xl bg-line/50 px-4 py-3 text-sm text-muted">No entries in {{ month_start|date:"F Y" }}. Use the arrows to browse other months.</p>
@@ -173,6 +193,30 @@
         </ul>
       </section>
     </div>
+
+    {% if recent_jobs %}
+      <section class="reveal rounded-card border border-line bg-surface p-5 shadow-card" aria-labelledby="jobs-title">
+        <div class="flex items-center justify-between">
+          <h2 id="jobs-title" class="text-sm font-semibold uppercase tracking-wider text-muted">Recent jobs</h2>
+          <a href="{% url 'work:job_list' %}" class="text-sm font-medium text-accent hover:underline">View all</a>
+        </div>
+        <ul role="list" class="mt-3 divide-y divide-line">
+          {% for j in recent_jobs %}
+            <li>
+              <a href="{% url 'work:job_edit' j.pk %}" class="-mx-2 flex items-center gap-3 rounded-xl px-2 py-3 hover:bg-line/50">
+                <span class="grid size-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-route text-sm"></i></span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-medium">{{ j.route|default:"Job" }}</span>
+                  <span class="block truncate text-xs text-muted">{{ j.date|date:"M j" }}{% if j.broker %} · {{ j.broker.name }}{% endif %}{% if j.reference %} · {{ j.reference }}{% endif %}</span>
+                </span>
+                <span class="amount text-sm font-semibold tabular-nums text-positive">{{ j.gross_pay|money:symbol }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
   {% endif %}
 </div>
 {% endblock %}

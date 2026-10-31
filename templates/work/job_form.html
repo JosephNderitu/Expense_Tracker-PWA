@@ -1,0 +1,59 @@
+{# templates/work/job_form.html #}
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if job %}Edit job{% else %}Add job{% endif %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg space-y-4">
+  <a href="{% url 'work:job_list' %}" class="inline-flex min-h-11 items-center gap-2 text-sm text-muted hover:text-ink"><i class="fa-solid fa-arrow-left"></i>Back to jobs</a>
+  <h1 class="text-xl font-semibold tracking-tight">{% if job %}Edit job{% else %}Add job{% endif %}</h1>
+
+  <form method="post" class="space-y-4 rounded-card border border-line bg-surface p-6 shadow-card">
+    {% csrf_token %}
+    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+    {% if form.non_field_errors %}<div class="rounded-lg bg-negative/10 px-3.5 py-2.5 text-sm text-negative">{{ form.non_field_errors.0 }}</div>{% endif %}
+
+    <div class="grid grid-cols-2 gap-4">
+      {% include "accounts/_field.html" with field=form.date %}
+      {% include "accounts/_field.html" with field=form.gross_pay %}
+    </div>
+
+    <div class="space-y-1.5">
+      <label for="{{ form.broker_name.id_for_label }}" class="block text-sm font-medium text-ink">{{ form.broker_name.label }}</label>
+      <div data-typeahead data-source="broker-names" class="relative">
+        {{ form.broker_name }}
+        <ul id="broker-list" role="listbox" class="absolute z-20 mt-1 hidden max-h-64 w-full overflow-auto rounded-xl border border-line bg-surface py-1 shadow-card"></ul>
+      </div>
+      {% for e in form.broker_name.errors %}<p class="text-sm text-negative">{{ e }}</p>{% endfor %}
+    </div>
+
+    {% include "accounts/_field.html" with field=form.reference %}
+    <div class="grid grid-cols-2 gap-4">
+      {% include "accounts/_field.html" with field=form.origin %}
+      {% include "accounts/_field.html" with field=form.destination %}
+    </div>
+    {% include "accounts/_field.html" with field=form.miles %}
+    {% if not form.single_truck %}{% include "accounts/_field.html" with field=form.truck %}{% endif %}
+    {% include "accounts/_field.html" with field=form.notes %}
+
+    <div class="flex gap-3">
+      <button class="min-h-11 flex-1 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90">Save</button>
+      {% if job %}
+        <a href="{% url 'work:job_list' %}" class="grid min-h-11 flex-1 place-items-center rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Cancel</a>
+      {% else %}
+        <button name="another" value="1" class="min-h-11 flex-1 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Save and add another</button>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if job %}
+    <form method="post" action="{% url 'work:job_delete' job.pk %}" onsubmit="return confirm('Delete this job? You can undo right after.')">
+      {% csrf_token %}
+      <button class="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-negative hover:bg-negative/10"><i class="fa-solid fa-trash"></i>Delete job</button>
+    </form>
+  {% endif %}
+</div>
+{{ broker_names|json_script:"broker-names" }}
+{% endblock %}
+
+{% block scripts %}<script src="{% static 'js/typeahead.js' %}"></script>{% endblock %}

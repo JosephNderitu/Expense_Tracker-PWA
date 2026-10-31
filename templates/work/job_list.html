@@ -1,0 +1,91 @@
+{# templates/work/job_list.html #}
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Jobs{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Jobs</h1>
+      <p class="text-sm text-muted">{{ count }} {% if count == 1 %}job{% else %}jobs{% endif %} in {{ month|date:"F Y" }}</p>
+    </div>
+    <div class="flex w-full items-center rounded-full border border-line bg-surface p-1 text-sm shadow-sm sm:w-auto">
+      <a href="?month={{ prev_month }}" aria-label="Previous month" class="grid size-10 place-items-center rounded-full text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-chevron-left"></i></a>
+      <span class="min-w-32 flex-1 px-2 text-center font-medium" aria-live="polite">{{ month|date:"F Y" }}</span>
+      {% if is_current_month %}
+        <span class="grid size-10 place-items-center rounded-full text-muted opacity-30" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+      {% else %}
+        <a href="?month={{ next_month }}" aria-label="Next month" class="grid size-10 place-items-center rounded-full text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-chevron-right"></i></a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if undo_job %}
+    <div role="status" class="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-2 text-sm shadow-sm">
+      <i class="fa-solid fa-trash text-muted"></i>
+      <p class="flex-1">Deleted the job from {{ undo_job.date|date:"M j" }}.</p>
+      <form method="post" action="{% url 'work:job_restore' undo_job.pk %}">{% csrf_token %}<button class="min-h-10 rounded-lg px-3 font-medium text-accent hover:bg-accent/10">Undo</button></form>
+    </div>
+  {% endif %}
+
+  <div class="grid grid-cols-3 gap-3">
+    <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+      <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Earned</p>
+      <p class="amount mt-1 truncate text-base font-semibold tabular-nums sm:text-xl">{{ earned|money:symbol }}</p>
+    </div>
+    <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+      <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Miles</p>
+      <p class="mt-1 truncate text-base font-semibold tabular-nums sm:text-xl">{{ miles }}</p>
+    </div>
+    <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+      <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Per mile</p>
+      <p class="amount mt-1 truncate text-base font-semibold tabular-nums sm:text-xl">{% if per_mile %}{{ per_mile|money:symbol }}{% else %}n/a{% endif %}</p>
+    </div>
+  </div>
+
+  <form method="get" class="flex gap-2">
+    <input type="hidden" name="month" value="{{ month|date:'Y-m' }}">
+    <input name="q" value="{{ q }}" placeholder="Search load number, route, broker" aria-label="Search jobs"
+           class="block min-h-11 w-full rounded-lg border border-line bg-surface px-3.5 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30">
+    <button class="min-h-11 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line" aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
+    <a href="{% url 'work:job_create' %}" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-plus"></i><span class="hidden sm:inline">Add job</span></a>
+  </form>
+
+  <section class="rounded-card border border-line bg-surface p-2 shadow-card sm:p-3">
+    {% if jobs %}
+      <ul role="list" class="divide-y divide-line">
+        {% for j in jobs %}
+          <li>
+            <a href="{% url 'work:job_edit' j.pk %}" class="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-line/50">
+              <span class="grid size-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-route text-sm"></i></span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium">{{ j.route|default:"Job" }}{% if j.reference %} <span class="text-muted">· {{ j.reference }}</span>{% endif %}</span>
+                <span class="block truncate text-xs text-muted">{{ j.date|date:"M j" }}{% if j.broker %} · {{ j.broker.name }}{% endif %}{% if j.miles %} · {{ j.miles }} mi{% endif %}</span>
+              </span>
+              <span class="amount text-sm font-semibold tabular-nums text-positive">{{ j.gross_pay|money:symbol }}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="p-10 text-center">
+        <span class="mx-auto grid size-14 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-route text-xl"></i></span>
+        <h2 class="mt-4 text-lg font-semibold">{% if q %}No jobs match{% else %}No jobs in {{ month|date:"F Y" }}{% endif %}</h2>
+        <p class="mt-1 text-sm text-muted">{% if q %}Try a different search.{% else %}Record each load you haul and your earnings appear on the dashboard.{% endif %}</p>
+        <a href="{% url 'work:job_create' %}" class="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-plus"></i>Add a job</a>
+      </div>
+    {% endif %}
+  </section>
+
+  {% if is_paginated %}
+    <nav class="flex items-center justify-between text-sm" aria-label="Pagination">
+      <p class="text-muted">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ paginator.count }}</p>
+      <div class="flex gap-1">
+        {% if page_obj.has_previous %}<a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.previous_page_number }}" class="grid size-10 place-items-center rounded-full hover:bg-line/50" aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></a>{% endif %}
+        {% if page_obj.has_next %}<a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.next_page_number }}" class="grid size-10 place-items-center rounded-full hover:bg-line/50" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></a>{% endif %}
+      </div>
+    </nav>
+  {% endif %}
+</div>
+{% endblock %}
