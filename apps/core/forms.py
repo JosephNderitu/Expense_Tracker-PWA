@@ -4,12 +4,11 @@ from decimal import Decimal
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db import transaction as db_transaction
+from django.db.models import Q
 
+from .constants import SUPPORTED_CURRENCIES
 from .models import Attachment, Transaction
 from .validators import ACCEPT, MAX_PER_ENTRY, clean_uploads
-from .constants import SUPPORTED_CURRENCIES
-from .models import Transaction
-from django.db.models import Q
 
 INPUT = (
     "block w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink "
@@ -22,6 +21,7 @@ class StyledFormMixin:
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", INPUT)
+
 
 class MultipleFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True
@@ -42,11 +42,17 @@ class MultipleFileField(forms.FileField):
 def _file_widget():
     return MultipleFileInput(attrs={"accept": ACCEPT, "class": "peer sr-only"})
 
+
+def kind_choices(*values):
+    return [(v, l) for v, l in Attachment.Kind.choices if v in values]
+
+
 class TransactionForm(StyledFormMixin, forms.ModelForm):
     currency = forms.ChoiceField(choices=SUPPORTED_CURRENCIES)
     exchange_rate = forms.DecimalField(
         required=False, min_value=Decimal("0.0001"), max_digits=14, decimal_places=4
     )
+    attachment_kind = forms.ChoiceField(choices=kind_choices("receipt", "invoice", "document"))
 
     field_order = ["category", "amount", "currency", "exchange_rate", "date", "payment_method", "note"]
 
@@ -87,28 +93,36 @@ class TransactionForm(StyledFormMixin, forms.ModelForm):
         else:
             self.instance.rate_to_base = Decimal("1")
         return cleaned
-    
+
+
 class AttachmentUploadForm(StyledFormMixin, forms.Form):
     attachments = MultipleFileField(required=False, widget=_file_widget())
-    attachment_kind = forms.ChoiceField(choices=Attachment.Kind.choices, initial=Attachment.Kind.RECEIPT, label="Document type")
+    attachment_kind = forms.ChoiceField(choices=Attachment.Kind.choices, label="Document type")
 
-    def __init__(self, *args, transaction, **kwargs):
+    def __init__(self, *args, parent, **kwargs):
         super().__init__(*args, **kwargs)
-        self.transaction = transaction
+        self.parent = parent
+        self.is_job = parent._meta.model_name == "job"
+        field = self.fields["attachment_kind"]
+        if self.is_job:
+            field.choices = kind_choices("bol", "pod", "rate", "invoice", "document")
+            field.initial = Attachment.Kind.BOL
+        else:
+            field.choices = kind_choices("receipt", "invoice", "document")
+            field.initial = Attachment.Kind.RECEIPT
 
     def clean_attachments(self):
         files = clean_uploads(self.cleaned_data.get("attachments"))
         if not files:
             raise ValidationError("Choose at least one file.")
-        if self.transaction.attachments.count() + len(files) > MAX_PER_ENTRY:
-            raise ValidationError(f"An entry can hold up to {MAX_PER_ENTRY} files.")
+        if self.parent.attachments.count() + len(files) > MAX_PER_ENTRY:
+            raise ValidationError(f"Up to {MAX_PER_ENTRY} files can be attached here.")
         return files
 
     def save(self):
         files = self.cleaned_data["attachments"]
+        owner = {"job": self.parent} if self.is_job else {"transaction": self.parent}
         with db_transaction.atomic():
             for upload in files:
-                Attachment.objects.create(
-                    transaction=self.transaction, file=upload, kind=self.cleaned_data["attachment_kind"]
-                )
+                Attachment.objects.create(file=upload, kind=self.cleaned_data["attachment_kind"], **owner)
         return len(files)

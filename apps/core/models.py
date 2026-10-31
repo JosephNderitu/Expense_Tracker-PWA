@@ -129,7 +129,8 @@ class Transaction(TimeStampedModel):
 def attachment_path(instance, filename):
     ext = Path(filename).suffix.lower()
     now = timezone.now()
-    return f"{instance.transaction.workspace.owner_id}/{now:%Y/%m}/{uuid.uuid4().hex}{ext}"
+    parent = instance.transaction or instance.job
+    return f"{parent.workspace.owner_id}/{now:%Y/%m}/{uuid.uuid4().hex}{ext}"
 
 
 class Attachment(TimeStampedModel):
@@ -137,8 +138,12 @@ class Attachment(TimeStampedModel):
         RECEIPT = "receipt", "Receipt"
         INVOICE = "invoice", "Invoice"
         DOCUMENT = "document", "Document"
+        RATE = "rate", "Rate confirmation"
+        BOL = "bol", "Bill of lading"
+        POD = "pod", "Proof of delivery"
 
-    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name="attachments")
+    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, null=True, blank=True, related_name="attachments")
+    job = models.ForeignKey("work.Job", on_delete=models.CASCADE, null=True, blank=True, related_name="attachments")
     file = models.FileField(upload_to=attachment_path, storage=get_private_storage, max_length=255)
     original_name = models.CharField(max_length=255)
     content_type = models.CharField(max_length=100)
@@ -147,6 +152,13 @@ class Attachment(TimeStampedModel):
 
     class Meta:
         ordering = ["created_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(models.Q(transaction__isnull=False) & models.Q(job__isnull=True))
+                | (models.Q(transaction__isnull=True) & models.Q(job__isnull=False)),
+                name="attachment_has_exactly_one_parent",
+            )
+        ]
 
     def __str__(self):
         return self.original_name

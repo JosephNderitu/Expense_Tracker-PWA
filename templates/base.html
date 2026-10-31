@@ -59,6 +59,7 @@
     </header>
 
     <main id="main" class="mx-auto max-w-6xl px-4 pb-28 pt-6 lg:pb-10">
+      {% if crumbs %}{% include "partials/_breadcrumbs.html" %}{% endif %}
       {% for message in messages %}
         <div role="status" class="mb-4 flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-sm shadow-sm">
           <i class="fa-solid fa-circle-check text-positive"></i>{{ message }}

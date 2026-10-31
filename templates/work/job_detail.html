@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}{{ job.reference|default:"Job" }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card">
+    <div class="flex items-start justify-between gap-4">
+      <div class="flex min-w-0 items-center gap-4">
+        <span class="grid size-12 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-route"></i></span>
+        <div class="min-w-0">
+          <h1 class="truncate text-xl font-semibold tracking-tight">{{ job.route|default:"Job" }}</h1>
+          <p class="truncate text-sm text-muted">{{ job.date|date:"l, F j, Y" }}{% if job.reference %} · {{ job.reference }}{% endif %}</p>
+        </div>
+      </div>
+      <a href="{% url 'work:job_edit' job.pk %}" class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line"><i class="fa-solid fa-pen"></i><span class="hidden sm:inline">Edit</span></a>
+    </div>
+    <dl class="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+      <div><dt class="text-muted">Pay</dt><dd class="amount text-lg font-semibold tabular-nums">{{ job.gross_pay|money:symbol }}</dd></div>
+      <div><dt class="text-muted">Broker</dt><dd class="truncate font-medium">{{ job.broker.name|default:"Not set" }}</dd></div>
+      <div><dt class="text-muted">Miles</dt><dd class="font-medium">{{ job.miles|default:"Not set" }}</dd></div>
+      <div><dt class="text-muted">Truck</dt><dd class="truncate font-medium">{{ job.truck.name }}</dd></div>
+    </dl>
+    {% if job.notes %}<p class="mt-4 text-sm text-muted">{{ job.notes }}</p>{% endif %}
+  </section>
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card" aria-labelledby="inv-title">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 id="inv-title" class="text-sm font-semibold uppercase tracking-wider text-muted">Invoice{% if invoice.number %} {{ invoice.number }}{% endif %}</h2>
+      <div class="flex items-center gap-2">
+        {% include "work/_status_badge.html" %}
+        <a href="{% url 'work:invoice_edit' invoice.pk %}" class="grid size-9 place-items-center rounded-full text-muted hover:bg-line/50 hover:text-ink" aria-label="Edit invoice details"><i class="fa-solid fa-pen text-sm"></i></a>
+      </div>
+    </div>
+
+    <dl class="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+      <div><dt class="text-muted">Invoice amount</dt><dd class="amount font-semibold tabular-nums">{{ invoice.amount|money:symbol }}</dd></div>
+      <div><dt class="text-muted">Received so far</dt><dd class="amount font-semibold tabular-nums">{{ received|money:symbol }}</dd></div>
+      <div><dt class="text-muted">Still to come</dt><dd class="amount font-semibold tabular-nums">{{ invoice.bal|money:symbol }}</dd></div>
+      <div>
+        <dt class="text-muted">Customer due</dt>
+        <dd class="font-medium">{{ invoice.due_date|date:"M j, Y" }}
+          <span class="block text-xs {% if invoice.status != 'paid' and invoice.days_to_due < 0 %}text-negative{% else %}text-muted{% endif %}">
+            {% if invoice.status == "paid" %}Settled{% elif invoice.days_to_due < 0 %}{{ invoice.days_overdue }} day{{ invoice.days_overdue|pluralize }} overdue{% elif invoice.days_to_due == 0 %}Due today{% else %}in {{ invoice.days_to_due }} day{{ invoice.days_to_due|pluralize }}{% endif %}
+          </span>
+        </dd>
+      </div>
+    </dl>
+
+    <div class="mt-5 rounded-xl bg-accent/5 p-4">
+      {% if invoice.status == "paid" %}
+        <p class="flex items-center gap-2 font-medium text-positive"><i class="fa-solid fa-circle-check"></i>Fully settled</p>
+        <p class="mt-1 text-sm text-muted">You received {{ received|money:symbol }} and paid {{ fees|money:symbol }} in fees, so you kept {{ net_cash|money:symbol }} of this invoice.</p>
+      {% elif invoice.status == "sold" %}
+        <p class="font-medium">Next step: when {{ invoice.deal.factor.name }} releases your reserve, record it.</p>
+        <p class="mt-1 text-sm text-muted">You are still owed {{ invoice.bal|money:symbol }} before any fee they take.</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a href="{% url 'work:invoice_release' invoice.pk %}" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-hand-holding-dollar"></i>Record the reserve</a>
+          {% if invoice.deal.recourse %}<a href="{% url 'work:invoice_chargeback' invoice.pk %}" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Customer never paid</a>{% endif %}
+        </div>
+      {% else %}
+        {% if charged_back %}
+          <p class="mb-2 flex items-center gap-2 text-sm font-medium text-negative"><i class="fa-solid fa-triangle-exclamation"></i>The advance was charged back. Your customer still owes this invoice.</p>
+          <p class="font-medium">Next step: record the payment when your customer pays.</p>
+        {% else %}
+          <p class="font-medium">Next step: sell this invoice for cash now, or record the payment when your customer pays.</p>
+        {% endif %}
+        <div class="mt-3 flex flex-wrap gap-2">
+          {% if not invoice.deal %}<a href="{% url 'work:invoice_sell' invoice.pk %}" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-handshake"></i>Sell invoice</a>{% endif %}
+          <a href="{% url 'work:invoice_pay' invoice.pk %}" class="inline-flex min-h-11 items-center gap-2 rounded-lg {% if invoice.deal %}bg-accent text-on-accent hover:opacity-90{% else %}bg-line/60 hover:bg-line{% endif %} px-4 text-sm font-medium"><i class="fa-solid fa-money-check-dollar"></i>Record payment</a>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if invoice.deal %}
+      {% with d=invoice.deal n=invoice.deal.numbers %}
+        <dl class="mt-5 grid grid-cols-2 gap-4 border-t border-line pt-5 text-sm sm:grid-cols-3">
+          <div><dt class="text-muted">Sold to</dt><dd class="font-medium">{{ d.factor.name }}</dd></div>
+          <div><dt class="text-muted">Sold on</dt><dd class="font-medium">{{ d.sold_on|date:"M j, Y" }}</dd></div>
+          <div><dt class="text-muted">Recourse</dt><dd class="font-medium">{% if d.recourse %}Yes{% else %}No{% endif %}</dd></div>
+          <div><dt class="text-muted">Advance ({{ d.advance_pct|floatformat:"-2" }}%)</dt><dd class="amount font-medium tabular-nums">{{ n.advance|money:symbol }}</dd></div>
+          <div><dt class="text-muted">Reserve held</dt><dd class="amount font-medium tabular-nums">{{ n.reserve|money:symbol }}</dd></div>
+          <div><dt class="text-muted">Fee ({{ d.cost_pct|floatformat:1 }}%)</dt><dd class="amount font-medium tabular-nums">{{ n.fee|money:symbol }} <span class="block text-xs font-normal text-muted">{{ d.get_fee_timing_display }}</span></dd></div>
+        </dl>
+      {% endwith %}
+    {% endif %}
+
+    {% if entries %}
+      <div class="mt-5 border-t border-line pt-5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold">Money trail</h3>
+          <form method="post" action="{% url 'work:invoice_undo' invoice.pk %}" onsubmit="return confirm('Undo the most recent step? Its entries are removed permanently.')">
+            {% csrf_token %}
+            <button class="inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-rotate-left"></i>Undo last step</button>
+          </form>
+        </div>
+        <ul role="list" class="mt-2 divide-y divide-line">
+          {% for e in entries %}
+            <li class="flex items-center gap-3 py-2.5 text-sm">
+              <span class="grid size-8 shrink-0 place-items-center rounded-full bg-line/60 text-muted"><i class="fa-solid {% if e.kind == 'fee' %}fa-percent{% elif e.kind == 'chargeback' %}fa-rotate-left{% else %}fa-arrow-down{% endif %} text-xs"></i></span>
+              <span class="min-w-0 flex-1"><span class="block">{{ e.get_kind_display }}</span><span class="block text-xs text-muted">{{ e.transaction.date|date:"M j, Y" }}</span></span>
+              <span class="amount font-semibold tabular-nums {% if e.kind == 'fee' or e.kind == 'chargeback' %}text-negative{% else %}text-positive{% endif %}">{% if e.kind == 'fee' or e.kind == 'chargeback' %}-{% else %}+{% endif %}{{ e.transaction.amount|money:symbol }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </section>
+
+  {% include "core/_attachments.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}{% include "core/_attachments_js.html" %}{% endblock %}

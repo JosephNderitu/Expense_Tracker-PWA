@@ -57,13 +57,16 @@
       <ul role="list" class="divide-y divide-line">
         {% for j in jobs %}
           <li>
-            <a href="{% url 'work:job_edit' j.pk %}" class="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-line/50">
+            <a href="{% url 'work:job_detail' j.pk %}" class="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-line/50">
               <span class="grid size-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-route text-sm"></i></span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-sm font-medium">{{ j.route|default:"Job" }}{% if j.reference %} <span class="text-muted">· {{ j.reference }}</span>{% endif %}</span>
                 <span class="block truncate text-xs text-muted">{{ j.date|date:"M j" }}{% if j.broker %} · {{ j.broker.name }}{% endif %}{% if j.miles %} · {{ j.miles }} mi{% endif %}</span>
               </span>
-              <span class="amount text-sm font-semibold tabular-nums text-positive">{{ j.gross_pay|money:symbol }}</span>
+              <span class="shrink-0 text-right">
+                <span class="amount block text-sm font-semibold tabular-nums text-positive">{{ j.gross_pay|money:symbol }}</span>
+                {% if j.invoice %}<span class="mt-1 block">{% include "work/_status_badge.html" with invoice=j.invoice %}</span>{% endif %}
+              </span>
             </a>
           </li>
         {% endfor %}

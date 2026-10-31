@@ -15,12 +15,15 @@ from .selectors import add_months, dashboard_data, parse_month, BASE, ZERO
 from .services import SCOPES, ensure_workspaces, get_active_workspace, get_scope, scoped_workspaces
 from .validators import MAX_PER_ENTRY
 
+from apps.work.models import Job
 from datetime import timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Exists, OuterRef, Q, Sum
 from django_filters.views import FilterView
 from .filters import TransactionFilter
+from django.urls import reverse
+from .nav import crumbs
 
 INLINE_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
 
@@ -64,7 +67,10 @@ def transaction_create(request):
         form.save()
         messages.success(request, "Entry saved.")
         return redirect("core:transaction_create" if "another" in request.POST else "core:transaction_list")
-    return render(request, "core/transaction_form.html", {"form": form, "workspace": workspace})
+    return render(request, "core/transaction_form.html",
+                  {"form": form, "workspace": workspace,
+                   "crumbs": crumbs(("Entries", reverse("core:transaction_list")), ("Add entry", None)),
+                   })
 
 @login_required
 def transaction_detail(request, pk):
@@ -72,7 +78,7 @@ def transaction_detail(request, pk):
         Transaction.objects.select_related("category", "workspace"), pk=pk, workspace__owner=request.user
     )
     attachments = list(entry.attachments.all())
-    form = AttachmentUploadForm(request.POST or None, request.FILES or None, transaction=entry)
+    form = AttachmentUploadForm(request.POST or None, request.FILES or None, parent=entry)
     if request.method == "POST" and form.is_valid():
         added = form.save()
         messages.success(request, f"{added} file{'s' if added != 1 else ''} added.")
@@ -91,12 +97,20 @@ def transaction_detail(request, pk):
         "display_rate": display_rate,
         "fuel": getattr(entry, "fuel", None),
         "maintenance": getattr(entry, "maintenance", None),
+        "crumbs": crumbs(("Entries", reverse("core:transaction_list")), (entry.category.name, None)),
+        "invoice_link": getattr(entry, "invoice_link", None),
     })
 
+def _owned_attachment(request, pk):
+    mine = Attachment.objects.filter(
+        Q(transaction__workspace__owner=request.user, transaction__deleted_at__isnull=True)
+        | Q(job__workspace__owner=request.user, job__deleted_at__isnull=True)
+    )
+    return get_object_or_404(mine, pk=pk)
 
 @login_required
 def attachment_file(request, pk):
-    attachment = get_object_or_404(Attachment, pk=pk, transaction__deleted_at__isnull=True, transaction__workspace__owner=request.user)
+    attachment = _owned_attachment(request, pk)
     as_download = request.GET.get("download") == "1" or attachment.content_type not in INLINE_TYPES
     try:
         handle = attachment.file.open("rb")
@@ -112,10 +126,12 @@ def attachment_file(request, pk):
 @login_required
 @require_POST
 def attachment_delete(request, pk):
-    attachment = get_object_or_404(Attachment, pk=pk, transaction__workspace__owner=request.user, transaction__deleted_at__isnull=True)
-    entry_pk = attachment.transaction_id
+    attachment = _owned_attachment(request, pk)
+    job_pk, entry_pk = attachment.job_id, attachment.transaction_id
     attachment.delete()
     messages.success(request, "File removed.")
+    if job_pk:
+        return redirect("work:job_detail", pk=job_pk)
     return redirect("core:transaction_detail", pk=entry_pk)
 
 def _display(field, value):
@@ -212,6 +228,7 @@ class TransactionListView(LoginRequiredMixin, FilterView):
                 if undo_pk else None
             ),
         )
+        ctx["crumbs"] = crumbs(("Entries", None))
         return ctx
 
 
@@ -220,6 +237,10 @@ def transaction_edit(request, pk):
     entry = get_object_or_404(
         Transaction.objects.select_related("workspace", "category"), pk=pk, workspace__owner=request.user
     )
+    link = getattr(entry, "invoice_link", None)
+    if link:
+        messages.info(request, "This entry belongs to an invoice. Change it from the job page, using Undo last step.")
+        return redirect("work:job_detail", pk=link.invoice.job_id)
     if hasattr(entry, "fuel"):
         return redirect("work:fuel_edit", pk=entry.pk)
     if hasattr(entry, "maintenance"):
@@ -230,13 +251,17 @@ def transaction_edit(request, pk):
         messages.success(request, "Entry updated.")
         return redirect("core:transaction_detail", pk=entry.pk)
     return render(request, "core/transaction_form.html",
-                  {"form": form, "workspace": entry.workspace, "entry": entry, "editing": True})
-
+                     {"form": form, "workspace": entry.workspace, "entry": entry, "editing": True, "crumbs": crumbs(("Entries", reverse("core:transaction_list")),
+                   (entry.category.name, reverse("core:transaction_detail", args=[entry.pk])), ("Edit", None)),})
 
 @login_required
 @require_POST
 def transaction_delete(request, pk):
     entry = get_object_or_404(Transaction, pk=pk, workspace__owner=request.user)
+    link = getattr(entry, "invoice_link", None)
+    if link:
+        messages.info(request, "This entry belongs to an invoice. Change it from the job page, using Undo last step.")
+        return redirect("work:job_detail", pk=link.invoice.job_id)
     entry.deleted_at = timezone.now()
     entry.save(update_fields=["deleted_at", "updated_at"])
     request.session["undo_pk"] = entry.pk
@@ -261,4 +286,9 @@ def transaction_trash(request):
         Transaction.all_objects.filter(workspace__owner=request.user, deleted_at__isnull=False)
         .select_related("category", "workspace").order_by("-deleted_at")[:100]
     )
-    return render(request, "core/transaction_trash.html", {"entries": entries})
+    return render(request, "core/transaction_trash.html", {
+        "entries": entries, 
+        "jobs": Job.all_objects.filter(workspace__owner=request.user, deleted_at__isnull=False)
+                   .select_related("broker").order_by("-deleted_at")[:50],
+        "crumbs": crumbs(("Entries", reverse("core:transaction_list")), ("Recently deleted", None)),
+    })

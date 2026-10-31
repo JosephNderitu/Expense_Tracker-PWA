@@ -10,8 +10,13 @@ from apps.core.models import Attachment, Category, Transaction
 from apps.core.validators import ACCEPT, clean_uploads
 
 from .constants import US_STATES
-from .models import FuelDetail, Job, MaintenanceDetail, Party, Truck
+from .models import FuelDetail, Job, MaintenanceDetail, Party, Truck, FactoringDeal, Invoice
 from .services import resolve_party
+
+from django.core.exceptions import ValidationError
+
+from .invoicing import perform_sale, record_chargeback, record_settlement, create_invoice_for_job
+from .calc import sale_numbers
 
 DATE_INPUT = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 MONEY_INPUT = forms.NumberInput(attrs={"step": "0.01", "inputmode": "decimal", "placeholder": "0.00"})
@@ -53,8 +58,19 @@ class JobForm(StyledFormMixin, forms.ModelForm):
             self.initial["broker_name"] = self.instance.broker.name
 
     def save(self, commit=True):
+        is_new = self.instance.pk is None
+        old_pay = self.initial.get("gross_pay")
         self.instance.broker = resolve_party(self.workspace, Party.Kind.BROKER, self.cleaned_data.get("broker_name"))
-        return super().save(commit)
+        job = super().save(commit)
+        if commit:
+            if is_new:
+                create_invoice_for_job(job)
+            elif hasattr(job, "invoice"):
+                invoice = job.invoice
+                if invoice.status == "open" and not invoice.entries.exists() and invoice.amount == old_pay:
+                    invoice.amount = job.gross_pay
+                    invoice.save(update_fields=["amount", "updated_at"])
+        return job
 
 
 class WorkExpenseForm(StyledFormMixin, forms.Form):
@@ -143,3 +159,129 @@ class MaintenanceForm(WorkExpenseForm):
             "truck": data["truck"], "service_type": data["service_type"],
             "vendor": data["vendor"], "odometer": data["odometer"],
         })
+        
+        
+class SellForm(StyledFormMixin, forms.Form):
+    factor_name = forms.CharField(max_length=120, label="Factoring company")
+    sold_on = forms.DateField(initial=timezone.localdate, widget=DATE_INPUT, label="Date sold")
+    advance_pct = forms.DecimalField(max_digits=5, decimal_places=2, min_value=Decimal("1"), max_value=Decimal("100"),
+                                     initial=Decimal("90"), label="Advance (% of invoice)")
+    fee_rate_pct = forms.DecimalField(max_digits=6, decimal_places=3, min_value=Decimal("0"), max_value=Decimal("100"),
+                                      initial=Decimal("3"), label="Fee (% of invoice)")
+    fee_flat = forms.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"), required=False,
+                                  initial=Decimal("0"), label="Flat fees (optional)", widget=MONEY_INPUT)
+    fee_timing = forms.ChoiceField(choices=FactoringDeal.FeeTiming.choices, widget=forms.RadioSelect,
+                                   initial=FactoringDeal.FeeTiming.RESERVE, label="When is the fee taken?")
+    recourse = forms.BooleanField(required=False, initial=True,
+                                  label="Recourse: I repay the advance if my customer never pays")
+    notes = forms.CharField(required=False, max_length=255)
+
+    def __init__(self, *args, workspace, invoice, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.workspace, self.invoice = workspace, invoice
+        self.fields["factor_name"].widget.attrs.update({
+            "autocomplete": "off", "role": "combobox", "aria-autocomplete": "list",
+            "aria-expanded": "false", "aria-controls": "factor-list", "placeholder": "Type a name",
+        })
+        self.fields["fee_timing"].widget.attrs["class"] = "size-4"
+        self.fields["recourse"].widget.attrs["class"] = "size-4 mt-0.5"
+        last = FactoringDeal.objects.filter(invoice__workspace=workspace).order_by("-id").first()
+        if last:   # remember the terms from your last sale
+            self.initial.update(advance_pct=last.advance_pct, fee_rate_pct=last.fee_rate_pct, fee_flat=last.fee_flat,
+                                fee_timing=last.fee_timing, recourse=last.recourse)
+
+    def clean(self):
+        data = super().clean()
+        if all(k in data for k in ("advance_pct", "fee_rate_pct", "fee_timing")):
+            n = sale_numbers(self.invoice.amount, data["advance_pct"], data["fee_rate_pct"],
+                             data.get("fee_flat"), data["fee_timing"])
+            if data["fee_timing"] == "reserve" and n["fee"] > n["reserve"]:
+                raise ValidationError("The fee is larger than the reserve, so it cannot be taken from the reserve. "
+                                      "Choose 'Taken from the advance' or lower the fee.")
+            if n["cash_now"] <= 0:
+                raise ValidationError("The advance would not cover the fee.")
+        return data
+
+    def save(self):
+        d = self.cleaned_data
+        factor = resolve_party(self.workspace, Party.Kind.FACTOR, d["factor_name"])
+        return perform_sale(self.invoice, factor, sold_on=d["sold_on"], advance_pct=d["advance_pct"],
+                            fee_rate_pct=d["fee_rate_pct"], fee_flat=d.get("fee_flat"),
+                            fee_timing=d["fee_timing"], recourse=d["recourse"], notes=d["notes"])
+
+
+class SettleForm(StyledFormMixin, forms.Form):
+    """Reserve released by the factor, or the customer paying (including quick-pay)."""
+    date = forms.DateField(initial=timezone.localdate, widget=DATE_INPUT)
+    received = forms.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"), widget=MONEY_INPUT)
+    fee_withheld = forms.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"), required=False,
+                                      initial=Decimal("0"), widget=MONEY_INPUT)
+
+    def __init__(self, *args, invoice, mode, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.invoice, self.mode = invoice, mode
+        if mode == "release":
+            n = invoice.deal.numbers
+            self.initial["received"] = min(n["release"], invoice.bal)
+            self.initial["fee_withheld"] = n["fee"] if invoice.deal.fee_timing == "reserve" else Decimal("0")
+            self.fields["received"].label = "Cash received from the reserve"
+            self.fields["fee_withheld"].label = "Fee withheld from the reserve"
+        else:
+            self.initial["received"] = invoice.bal
+            self.fields["received"].label = "Cash received"
+            self.fields["fee_withheld"].label = "Fee withheld by the payer (quick-pay fee)"
+
+    def clean(self):
+        data = super().clean()
+        if "received" in data:
+            total = data["received"] + (data.get("fee_withheld") or Decimal("0"))
+            if total <= 0:
+                raise ValidationError("Enter the cash you received.")
+            if total > self.invoice.bal:
+                raise ValidationError(f"That is more than the remaining balance of {self.invoice.bal}.")
+        return data
+
+    def save(self):
+        d = self.cleaned_data
+        record_settlement(self.invoice, self.mode, d["date"], d["received"], d.get("fee_withheld"))
+
+
+class ChargebackForm(StyledFormMixin, forms.Form):
+    date = forms.DateField(initial=timezone.localdate, widget=DATE_INPUT)
+    amount = forms.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"),
+                                label="Advance repaid to the factor", widget=MONEY_INPUT)
+
+    def __init__(self, *args, invoice, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.invoice = invoice
+        self.net_received = invoice.inflow - invoice.back
+        self.initial["amount"] = self.net_received
+
+    def clean_amount(self):
+        amount = self.cleaned_data["amount"]
+        if amount > self.net_received:
+            raise ValidationError(f"You have only received {self.net_received} on this invoice.")
+        return amount
+
+    def save(self):
+        record_chargeback(self.invoice, self.cleaned_data["date"], self.cleaned_data["amount"])
+
+
+class InvoiceForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = Invoice
+        fields = ["number", "issue_date", "due_date", "amount"]
+        widgets = {"issue_date": DATE_INPUT, "due_date": DATE_INPUT, "amount": MONEY_INPUT}
+        labels = {"number": "Your invoice number (optional)", "amount": "Invoice amount"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.entries.exists():
+            self.fields["amount"].disabled = True
+            self.fields["amount"].help_text = "Locked because money has been recorded. Undo those steps to change it."
+
+    def clean(self):
+        data = super().clean()
+        if data.get("issue_date") and data.get("due_date") and data["due_date"] < data["issue_date"]:
+            self.add_error("due_date", "The due date cannot be before the issue date.")
+        return data

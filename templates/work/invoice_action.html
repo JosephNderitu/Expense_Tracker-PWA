@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load static money %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg space-y-4">
+  <div>
+    <h1 class="text-xl font-semibold tracking-tight">{{ title }}</h1>
+    <p class="text-sm text-muted">{{ intro }}</p>
+  </div>
+
+  <div class="flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-5 py-4 shadow-card">
+    <div class="min-w-0">
+      <p class="truncate text-sm font-medium">{{ job.route|default:"Job" }}{% if job.reference %} · {{ job.reference }}{% endif %}</p>
+      <p class="truncate text-xs text-muted">{{ job.broker.name|default:"No broker" }} · due {{ invoice.due_date|date:"M j, Y" }}</p>
+    </div>
+    <div class="shrink-0 text-right">
+      <p class="text-xs text-muted">{% if mode == "edit" %}Invoice{% else %}Still to come{% endif %}</p>
+      <p class="amount font-semibold tabular-nums">{% if mode == "edit" %}{{ invoice.amount|money:symbol }}{% else %}{{ invoice.bal|money:symbol }}{% endif %}</p>
+    </div>
+  </div>
+
+  <form method="post" class="space-y-4 rounded-card border border-line bg-surface p-6 shadow-card">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-lg bg-negative/10 px-3.5 py-2.5 text-sm text-negative">{{ form.non_field_errors.0 }}</div>{% endif %}
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% for field in form %}
+        {% if field.name == "factor_name" %}
+          <div class="space-y-1.5 sm:col-span-2">
+            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-ink">{{ field.label }}</label>
+            <div data-typeahead data-source="factor-names" class="relative">
+              {{ field }}
+              <ul id="factor-list" role="listbox" class="absolute z-20 mt-1 hidden max-h-64 w-full overflow-auto rounded-xl border border-line bg-surface py-1 shadow-card"></ul>
+            </div>
+            {% for e in field.errors %}<p class="text-sm text-negative">{{ e }}</p>{% endfor %}
+          </div>
+        {% elif field.name == "fee_timing" %}
+          <fieldset class="space-y-2 sm:col-span-2">
+            <legend class="text-sm font-medium text-ink">{{ field.label }}</legend>
+            {% for radio in field %}
+              <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-line px-3 text-sm">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>
+            {% endfor %}
+          </fieldset>
+        {% elif field.name == "recourse" %}
+          <label class="flex items-start gap-3 text-sm sm:col-span-2">{{ field }}<span>{{ field.label }}</span></label>
+        {% elif field.name == "notes" %}
+          <div class="sm:col-span-2">{% include "accounts/_field.html" with field=field %}</div>
+        {% else %}
+          <div>{% include "accounts/_field.html" with field=field %}</div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    {% if mode == "edit" %}
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <span class="text-muted">Set due date:</span>
+        <button type="button" data-days="30" class="min-h-9 rounded-full border border-line px-3 hover:border-accent">+30 days</button>
+        <button type="button" data-days="60" class="min-h-9 rounded-full border border-line px-3 hover:border-accent">+60 days</button>
+        <button type="button" data-days="90" class="min-h-9 rounded-full border border-line px-3 hover:border-accent">+90 days</button>
+      </div>
+    {% endif %}
+
+    {% if mode == "sell" %}
+      <div class="rounded-xl bg-accent/5 p-4 text-sm" aria-live="polite">
+        <p class="mb-2 font-medium">Preview</p>
+        <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5">
+          <dt class="text-muted">Cash today</dt><dd id="pv-cash" class="amount text-right font-semibold tabular-nums"></dd>
+          <dt class="text-muted">Reserve held</dt><dd id="pv-reserve" class="amount text-right tabular-nums"></dd>
+          <dt class="text-muted">Fee</dt><dd id="pv-fee" class="amount text-right tabular-nums"></dd>
+          <dt class="text-muted">Reserve you receive later</dt><dd id="pv-release" class="amount text-right tabular-nums"></dd>
+          <dt class="font-medium">You keep in total</dt><dd id="pv-net" class="amount text-right font-semibold tabular-nums"></dd>
+          <dt class="text-muted">Cost of getting paid early</dt><dd id="pv-cost" class="text-right"></dd>
+        </dl>
+        <p id="pv-warn" class="mt-2 hidden text-negative"></p>
+      </div>
+    {% endif %}
+
+    <div class="flex gap-3">
+      <button class="min-h-11 flex-1 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90">{{ button }}</button>
+      <a href="{% url 'work:job_detail' job.pk %}" class="grid min-h-11 flex-1 place-items-center rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Cancel</a>
+    </div>
+  </form>
+</div>
+{% if mode == "sell" %}{{ factor_names|json_script:"factor-names" }}{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if mode == "sell" %}
+<script src="{% static 'js/typeahead.js' %}"></script>
+<script>
+(() => {
+  const amount = parseFloat("{{ invoice.amount|floatformat:'2u' }}");
+  const days = {{ invoice.days_to_due }};
+  const symbol = "{{ symbol }}";
+  const $ = (id) => document.getElementById(id);
+  const num = (id) => parseFloat($(id) && $(id).value) || 0;
+  const cents = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+  const fmt = (n) => (n < 0 ? "-" : "") + symbol + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  function update() {
+    const advance = cents(amount * num("id_advance_pct") / 100);
+    const reserve = cents(amount - advance);
+    const fee = cents(amount * num("id_fee_rate_pct") / 100 + num("id_fee_flat"));
+    const checked = document.querySelector("input[name=fee_timing]:checked");
+    const upfront = checked && checked.value === "upfront";
+    $("pv-cash").textContent = fmt(upfront ? advance - fee : advance);
+    $("pv-reserve").textContent = fmt(reserve);
+    $("pv-fee").textContent = fmt(fee);
+    $("pv-release").textContent = fmt(upfront ? reserve : reserve - fee);
+    $("pv-net").textContent = fmt(amount - fee);
+    const pct = amount ? fee / amount * 100 : 0;
+    let cost = pct.toFixed(2) + "% of the invoice";
+    if (days > 0 && amount) cost += " · about " + (fee / amount * 365 / days * 100).toFixed(1) + "% a year";
+    $("pv-cost").textContent = cost;
+    const warn = $("pv-warn");
+    const bad = !upfront && fee > reserve;
+    warn.textContent = bad ? "The fee is bigger than the reserve. Choose 'Taken from the advance' or lower the fee." : "";
+    warn.classList.toggle("hidden", !bad);
+  }
+  document.querySelector("form").addEventListener("input", update);
+  document.querySelector("form").addEventListener("change", update);
+  update();
+})();
+</script>
+{% endif %}
+{% if mode == "edit" %}
+<script>
+(() => {
+  const issue = document.getElementById("id_issue_date"), due = document.getElementById("id_due_date");
+  document.querySelectorAll("[data-days]").forEach((btn) => btn.addEventListener("click", () => {
+    if (!issue.value) return;
+    const d = new Date(issue.value + "T00:00:00");
+    d.setDate(d.getDate() + Number(btn.dataset.days));
+    due.value = [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
+  }));
+})();
+</script>
+{% endif %}
+{% endblock %}

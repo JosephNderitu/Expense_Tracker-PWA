@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Invoices{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Invoices</h1>
+    <p class="text-sm text-muted">Everything you are waiting to be paid for, and what has been settled.</p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
+    <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+      <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Waiting to be paid</p>
+      <p class="amount mt-1 truncate text-lg font-semibold tabular-nums sm:text-2xl">{{ outstanding|money:symbol }}</p>
+      <p class="mt-1 text-xs text-muted">{{ counts.n_open|add:counts.n_sold }} invoice{{ counts.n_open|add:counts.n_sold|pluralize }}</p>
+    </div>
+    <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+      <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Overdue</p>
+      <p class="amount mt-1 truncate text-lg font-semibold tabular-nums sm:text-2xl {% if counts.n_overdue %}text-negative{% endif %}">{{ overdue_total|money:symbol }}</p>
+      <p class="mt-1 text-xs text-muted">{{ counts.n_overdue }} invoice{{ counts.n_overdue|pluralize }}</p>
+    </div>
+    <section class="col-span-2 rounded-card border border-line bg-surface p-4 shadow-card md:col-span-1" aria-labelledby="aging-title">
+      <p id="aging-title" class="text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Age of unpaid invoices</p>
+      <ul class="mt-2 space-y-1.5">
+        {% for a in aging %}
+          <li class="grid grid-cols-5 items-center gap-2 text-xs">
+            <span class="col-span-2 truncate text-muted">{{ a.label }}</span>
+            <span class="col-span-2 h-2 overflow-hidden rounded-full bg-line"><span class="block h-full rounded-full bg-accent" style="width: {{ a.pct }}%"></span></span>
+            <span class="amount text-right tabular-nums">{{ a.total|money:symbol }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <div class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible" role="tablist" aria-label="Invoice status">
+    <a href="?status=open" class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium {% if tab == 'open' %}border-accent bg-accent/10 text-accent{% else %}border-line text-muted hover:text-ink{% endif %}">Open <span class="text-xs">{{ counts.n_open }}</span></a>
+    <a href="?status=overdue" class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium {% if tab == 'overdue' %}border-accent bg-accent/10 text-accent{% else %}border-line text-muted hover:text-ink{% endif %}">Overdue <span class="text-xs">{{ counts.n_overdue }}</span></a>
+    <a href="?status=sold" class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium {% if tab == 'sold' %}border-accent bg-accent/10 text-accent{% else %}border-line text-muted hover:text-ink{% endif %}">Sold <span class="text-xs">{{ counts.n_sold }}</span></a>
+    <a href="?status=paid" class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium {% if tab == 'paid' %}border-accent bg-accent/10 text-accent{% else %}border-line text-muted hover:text-ink{% endif %}">Paid <span class="text-xs">{{ counts.n_paid }}</span></a>
+    <a href="?status=all" class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium {% if tab == 'all' %}border-accent bg-accent/10 text-accent{% else %}border-line text-muted hover:text-ink{% endif %}">All <span class="text-xs">{{ counts.n_all }}</span></a>
+  </div>
+
+  <section class="rounded-card border border-line bg-surface p-2 shadow-card sm:p-3">
+    {% if invoices %}
+      <ul role="list" class="divide-y divide-line">
+        {% for inv in invoices %}
+          <li>
+            <a href="{% url 'work:job_detail' inv.job_id %}" class="grid grid-cols-12 items-center gap-x-3 rounded-xl px-3 py-3 hover:bg-line/50">
+              <span class="col-span-8 min-w-0 md:col-span-5">
+                <span class="block truncate text-sm font-medium">{{ inv.job.broker.name|default:"No broker" }}{% if inv.job.reference %} <span class="text-muted">· {{ inv.job.reference }}</span>{% endif %}</span>
+                <span class="block truncate text-xs text-muted">{{ inv.job.route|default:"Job" }} · issued {{ inv.issue_date|date:"M j" }}</span>
+              </span>
+              <span class="hidden text-sm md:col-span-3 md:block">
+                {% include "work/_status_badge.html" with invoice=inv %}
+                <span class="mt-1 block text-xs {% if inv.status == 'open' and inv.days_to_due < 0 %}text-negative{% else %}text-muted{% endif %}">
+                  {% if inv.status == "paid" %}due {{ inv.due_date|date:"M j" }}{% elif inv.days_to_due < 0 %}{{ inv.days_overdue }} day{{ inv.days_overdue|pluralize }} late{% elif inv.days_to_due == 0 %}due today{% else %}due in {{ inv.days_to_due }} day{{ inv.days_to_due|pluralize }}{% endif %}
+                </span>
+              </span>
+              <span class="col-span-4 text-right md:col-span-4">
+                <span class="amount block text-sm font-semibold tabular-nums">{{ inv.amount|money:symbol }}</span>
+                {% if inv.status != "paid" %}<span class="amount block text-xs text-muted">{{ inv.bal|money:symbol }} to come</span>{% endif %}
+                <span class="mt-1 block md:hidden">{% include "work/_status_badge.html" with invoice=inv %}</span>
+              </span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="p-10 text-center">
+        <span class="mx-auto grid size-14 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-file-invoice-dollar text-xl"></i></span>
+        <h2 class="mt-4 text-lg font-semibold">Nothing here</h2>
+        <p class="mt-1 text-sm text-muted">Every job you add creates an invoice automatically, and it appears here.</p>
+        <a href="{% url 'work:job_create' %}" class="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-plus"></i>Add a job</a>
+      </div>
+    {% endif %}
+  </section>
+
+  {% if is_paginated %}
+    <nav class="flex items-center justify-between text-sm" aria-label="Pagination">
+      <p class="text-muted">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ paginator.count }}</p>
+      <div class="flex gap-1">
+        {% if page_obj.has_previous %}<a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.previous_page_number }}" class="grid size-10 place-items-center rounded-full hover:bg-line/50" aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></a>{% endif %}
+        {% if page_obj.has_next %}<a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.next_page_number }}" class="grid size-10 place-items-center rounded-full hover:bg-line/50" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></a>{% endif %}
+      </div>
+    </nav>
+  {% endif %}
+</div>
+{% endblock %}

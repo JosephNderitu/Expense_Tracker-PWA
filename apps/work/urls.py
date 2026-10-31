@@ -15,4 +15,13 @@ urlpatterns = [
     path("fuel/<int:pk>/edit/", views.fuel_edit, name="fuel_edit"),
     path("maintenance/new/", views.maintenance_create, name="maintenance_create"),
     path("maintenance/<int:pk>/edit/", views.maintenance_edit, name="maintenance_edit"),
+    
+    path("jobs/<int:pk>/", views.job_detail, name="job_detail"),
+    path("invoices/", views.InvoiceListView.as_view(), name="invoice_list"),
+    path("invoices/<int:pk>/sell/", views.invoice_sell, name="invoice_sell"),
+    path("invoices/<int:pk>/release/", views.invoice_release, name="invoice_release"),
+    path("invoices/<int:pk>/pay/", views.invoice_pay, name="invoice_pay"),
+    path("invoices/<int:pk>/chargeback/", views.invoice_chargeback, name="invoice_chargeback"),
+    path("invoices/<int:pk>/edit/", views.invoice_edit, name="invoice_edit"),
+    path("invoices/<int:pk>/undo/", views.invoice_undo, name="invoice_undo"),
 ]

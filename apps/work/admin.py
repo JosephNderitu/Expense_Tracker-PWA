@@ -1,8 +1,8 @@
 # apps/work/admin.py
 from django.contrib import admin
-from .models import FuelDetail, Job, MaintenanceDetail, Party, Truck
+from .models import FactoringDeal, FuelDetail, Invoice, InvoiceEntry, Job, MaintenanceDetail, Party, Truck
 
-admin.site.register([Party, Truck, FuelDetail, MaintenanceDetail])
+admin.site.register([Party, Truck, FuelDetail, MaintenanceDetail, Invoice, InvoiceEntry, FactoringDeal])
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):

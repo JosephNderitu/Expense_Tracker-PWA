@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from apps.core.models import Workspace
 from apps.core.services import ensure_workspaces
+from .invoicing import backfill_invoices
 
 from .models import Party, Truck
 
@@ -15,6 +16,7 @@ def get_work_workspace(request):
     ensure_workspaces(request.user)
     workspace = Workspace.objects.get(owner=request.user, type=Workspace.Type.WORK)
     default_truck(workspace)
+    backfill_invoices(request.user)
     return workspace
 
 

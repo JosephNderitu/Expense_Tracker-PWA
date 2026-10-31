@@ -1,0 +1,9 @@
+{% if invoice.status == "paid" %}
+  <span class="inline-flex items-center gap-1 rounded-full bg-positive/10 px-2.5 py-0.5 text-xs font-medium text-positive"><i class="fa-solid fa-circle-check"></i>Paid</span>
+{% elif invoice.status == "sold" %}
+  <span class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent"><i class="fa-solid fa-handshake"></i>Sold</span>
+{% elif invoice.days_to_due < 0 %}
+  <span class="inline-flex items-center gap-1 rounded-full bg-negative/10 px-2.5 py-0.5 text-xs font-medium text-negative"><i class="fa-solid fa-triangle-exclamation"></i>Overdue</span>
+{% else %}
+  <span class="inline-flex items-center gap-1 rounded-full bg-line/70 px-2.5 py-0.5 text-xs font-medium text-ink"><i class="fa-regular fa-clock"></i>Open</span>
+{% endif %}

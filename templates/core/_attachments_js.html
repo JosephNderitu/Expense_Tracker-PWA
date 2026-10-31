@@ -1,0 +1,21 @@
+{# templates/core/_attachments_js.html #}
+{% include "core/_dropzone_js.html" %}
+<script>
+(() => {
+  const dialog = document.getElementById("preview");
+  const body = document.getElementById("preview-body");
+  if (!dialog) return;
+  document.querySelectorAll("[data-preview]").forEach((btn) => btn.addEventListener("click", () => {
+    const el = document.createElement(btn.dataset.kind === "pdf" ? "iframe" : "img");
+    el.src = btn.dataset.preview;
+    el.className = btn.dataset.kind === "pdf" ? "h-[78vh] w-full" : "mx-auto max-h-[78vh]";
+    if (btn.dataset.kind !== "pdf") el.alt = btn.dataset.title;
+    body.replaceChildren(el);
+    document.getElementById("preview-title").textContent = btn.dataset.title;
+    dialog.showModal();
+  }));
+  document.getElementById("preview-close").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener("close", () => body.replaceChildren());
+})();
+</script>

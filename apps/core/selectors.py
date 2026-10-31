@@ -3,8 +3,9 @@ from decimal import Decimal
 
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, Max, Q, Sum
 from django.db.models.functions import TruncMonth
+from django.utils import timezone
 
-from apps.work.models import FuelDetail, Job
+from apps.work.models import RECEIVED_KINDS, FuelDetail, Invoice, InvoiceEntry, Job
 
 from .constants import CURRENCY_SYMBOLS
 from .models import Transaction
@@ -57,11 +58,16 @@ def _household_income(qs):
     return qs.filter(direction="in", workspace__type="household")
 
 
+def _out(qs):
+    # An advance repaid to a factor is a repayment, not an expense
+    return qs.filter(direction="out").exclude(invoice_link__kind="chargeback")
+
+
 def _period(workspaces, start, end):
     ledger = _ledger(workspaces).filter(date__gte=start, date__lt=end)
     jobs = _jobs(workspaces).filter(date__gte=start, date__lt=end)
     income = _sum(_household_income(ledger)) + _sum(jobs, GROSS)
-    return income, _sum(ledger.filter(direction="out"))
+    return income, _sum(_out(ledger))
 
 
 def _monthly(qs, expr):
@@ -71,7 +77,7 @@ def _monthly(qs, expr):
 
 def _by_category(qs):
     return list(
-        qs.filter(direction="out").values("category__name")
+        _out(qs).values("category__name")
         .annotate(total=Sum(BASE), color=Max("category__color"), icon=Max("category__icon"))
         .order_by("-total")
     )
@@ -100,6 +106,42 @@ def _work_stats(workspaces, start, end, spent, symbol):
          "value": f"{symbol}{fuel['total_cost'] / gallons:.3f}" if gallons else "n/a",
          "hint": f"{gallons:,.1f} gal bought" if gallons else "No fuel logged"},
     ]
+
+
+def _work_cash(workspaces, start, end, symbol, today):
+    entries = InvoiceEntry.objects.filter(
+        invoice__workspace__in=workspaces, invoice__job__deleted_at__isnull=True, transaction__deleted_at__isnull=True,
+    )
+    month = entries.filter(transaction__date__gte=start, transaction__date__lt=end).aggregate(
+        inflow=Sum("transaction__amount", filter=Q(kind__in=RECEIVED_KINDS)),
+        charged=Sum("transaction__amount", filter=Q(kind="chargeback")),
+        fees=Sum("transaction__amount", filter=Q(kind="fee")),
+    )
+    received = (month["inflow"] or ZERO) - (month["charged"] or ZERO)
+    waiting = list(
+        Invoice.objects.filter(workspace__in=workspaces, job__deleted_at__isnull=True)
+        .exclude(status="paid").with_balance().select_related("job", "job__broker")
+    )
+    overdue = [i for i in waiting if i.status == "open" and i.due_date < today]
+    stats = [
+        {"label": "Received this month", "icon": "fa-hand-holding-dollar", "value": money(received, symbol), "hint": "Cash from invoices"},
+        {"label": "Waiting to be paid", "icon": "fa-hourglass-half",
+         "value": money(sum((i.bal for i in waiting), ZERO), symbol), "hint": f"{len(waiting)} open or sold"},
+        {"label": "Overdue", "icon": "fa-triangle-exclamation",
+         "value": money(sum((i.bal for i in overdue), ZERO), symbol),
+         "hint": f"{len(overdue)} invoice{'s' if len(overdue) != 1 else ''}"},
+        {"label": "Fees paid", "icon": "fa-percent", "value": money(month["fees"] or ZERO, symbol), "hint": "This month"},
+    ]
+    attention = []
+    for i in sorted(waiting, key=lambda x: x.due_date):
+        late = (today - i.due_date).days
+        if late <= 0:
+            continue
+        who = i.job.broker.name if i.job.broker_id else "Invoice"
+        days = f"{late} day{'s' if late != 1 else ''}"
+        text = f"Overdue by {days}" if i.status == "open" else f"Customer was due {days} ago. Check your reserve"
+        attention.append({"job_id": i.job_id, "title": f"{who} · {money(i.bal, symbol)}", "text": text})
+    return stats, attention[:5]
 
 
 def dashboard_data(user, scope, month_start):
@@ -135,7 +177,7 @@ def dashboard_data(user, scope, month_start):
     jobs_w = _jobs(workspaces).filter(date__gte=window, date__lt=next_month)
     inc_ledger = _monthly(_household_income(ledger_w), BASE)
     inc_jobs = _monthly(jobs_w, GROSS)
-    out_month = _monthly(ledger_w.filter(direction="out"), BASE)
+    out_month = _monthly(_out(ledger_w), BASE)
 
     labels, full_labels, earned, spending, saved_line = [], [], [], [], []
     for i in range(12):
@@ -149,6 +191,10 @@ def dashboard_data(user, scope, month_start):
         earned.append(float(inc))
         spending.append(float(out))
         saved_line.append(float(running))
+
+    work_cash, attention = (None, [])
+    if scope != "household":
+        work_cash, attention = _work_cash(workspaces, month_start, next_month, symbol, timezone.localdate())
 
     month_jobs = _jobs(workspaces).filter(date__gte=month_start, date__lt=next_month)
     return {
@@ -165,6 +211,8 @@ def dashboard_data(user, scope, month_start):
         "saved_delta": _delta(saved, p_saved, higher_is_better=True),
         "categories": categories,
         "work_stats": _work_stats(workspaces, month_start, next_month, spent, symbol) if scope == "work" else None,
+        "work_cash": work_cash if scope == "work" else None,
+        "attention": attention,
         "recent_jobs": list(_jobs(workspaces).select_related("broker")[:5]) if scope == "work" else [],
         "recent": _ledger(workspaces).select_related("category", "workspace")
                     .annotate(num_files=Count("attachments")).order_by("-date", "-id")[:6],

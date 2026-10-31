@@ -4,7 +4,6 @@
 
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-5">
-  <a href="{% url 'core:transaction_list' %}" class="inline-flex min-h-11 items-center gap-2 text-sm text-muted hover:text-ink"><i class="fa-solid fa-arrow-left"></i>Back to entries</a>
   <div>
     <h1 class="text-2xl font-semibold tracking-tight">Recently deleted</h1>
     <p class="text-sm text-muted">Restore an entry and it returns with its documents. Entries older than 30 days are removed for good when the cleanup task runs.</p>
@@ -31,5 +30,25 @@
       <p class="p-8 text-center text-sm text-muted">Nothing here. Deleted entries appear in this list.</p>
     {% endif %}
   </section>
+
+  {% if jobs %}
+    <section class="rounded-card border border-line bg-surface p-3 shadow-card">
+      <h2 class="px-2 pb-1 pt-2 text-sm font-semibold uppercase tracking-wider text-muted">Deleted jobs</h2>
+      <ul role="list" class="divide-y divide-line">
+        {% for j in jobs %}
+          <li class="flex items-center gap-3 px-2 py-3">
+            <span class="grid size-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent opacity-60"><i class="fa-solid fa-route text-sm"></i></span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium">{{ j.route|default:"Job" }}{% if j.reference %} · {{ j.reference }}{% endif %}</p>
+              <p class="truncate text-xs text-muted">{{ j.date|date:"M j, Y" }} · deleted {{ j.deleted_at|date:"M j" }}</p>
+            </div>
+            <form method="post" action="{% url 'work:job_restore' j.pk %}">{% csrf_token %}
+              <button class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line"><i class="fa-solid fa-rotate-left"></i>Restore</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
 </div>
 {% endblock %}

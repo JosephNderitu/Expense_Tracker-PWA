@@ -1,0 +1,15 @@
+{# templates/partials/_breadcrumbs.html #}
+<nav aria-label="Breadcrumb" class="mb-4 text-sm">
+  <ol class="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted">
+    {% for c in crumbs %}
+      <li class="flex items-center gap-2">
+        {% if not forloop.first %}<i class="fa-solid fa-chevron-right text-[0.6rem]" aria-hidden="true"></i>{% endif %}
+        {% if c.url and not forloop.last %}
+          <a href="{{ c.url }}" class="hover:text-ink hover:underline">{% if forloop.first %}<i class="fa-solid fa-house"></i><span class="sr-only">{{ c.label }}</span>{% else %}{{ c.label }}{% endif %}</a>
+        {% else %}
+          <span aria-current="page" class="font-medium text-ink">{{ c.label }}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</nav>
