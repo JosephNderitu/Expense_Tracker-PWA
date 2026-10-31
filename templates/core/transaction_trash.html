@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Recently deleted{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-5">
+  <a href="{% url 'core:transaction_list' %}" class="inline-flex min-h-11 items-center gap-2 text-sm text-muted hover:text-ink"><i class="fa-solid fa-arrow-left"></i>Back to entries</a>
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Recently deleted</h1>
+    <p class="text-sm text-muted">Restore an entry and it returns with its documents. Entries older than 30 days are removed for good when the cleanup task runs.</p>
+  </div>
+  <section class="rounded-card border border-line bg-surface p-3 shadow-card">
+    {% if entries %}
+      <ul role="list" class="divide-y divide-line">
+        {% for t in entries %}
+          <li class="flex items-center gap-3 px-2 py-3">
+            <span class="grid size-10 shrink-0 place-items-center rounded-full text-white opacity-60" style="background: {{ t.category.color }}"><i class="fa-solid {{ t.category.icon }} text-sm"></i></span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium">{{ t.note|default:t.category.name }}</p>
+              <p class="truncate text-xs text-muted">{{ t.date|date:"M j, Y" }} · {{ t.workspace.name }} · deleted {{ t.deleted_at|date:"M j" }}</p>
+            </div>
+            <p class="amount text-sm font-semibold tabular-nums">{{ t.amount|money_in:t.currency }}</p>
+            <form method="post" action="{% url 'core:transaction_restore' t.pk %}">
+              {% csrf_token %}
+              <button class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line"><i class="fa-solid fa-rotate-left"></i>Restore</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="p-8 text-center text-sm text-muted">Nothing here. Deleted entries appear in this list.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
