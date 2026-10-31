@@ -54,3 +54,13 @@
   }
 }
 button, a, summary { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+@layer base {
+  /* Grids without explicit columns get one shrinkable column, so wide children can't stretch the page */
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  /* Children of flex and grid containers may shrink below their content, so truncation and wrapping work */
+  .grid > *, .flex > *, .inline-flex > * { min-width: 0; }
+  /* Icons never squash */
+  i[class*="fa-"] { flex-shrink: 0; }
+  body { overflow-wrap: break-word; overflow-x: clip; }
+}

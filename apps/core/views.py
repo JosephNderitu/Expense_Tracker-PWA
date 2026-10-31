@@ -24,6 +24,7 @@ from django_filters.views import FilterView
 from .filters import TransactionFilter
 from django.urls import reverse
 from .nav import crumbs
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 INLINE_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
 
@@ -109,6 +110,7 @@ def _owned_attachment(request, pk):
     return get_object_or_404(mine, pk=pk)
 
 @login_required
+@xframe_options_sameorigin
 def attachment_file(request, pk):
     attachment = _owned_attachment(request, pk)
     as_download = request.GET.get("download") == "1" or attachment.content_type not in INLINE_TYPES

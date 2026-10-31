@@ -55,9 +55,17 @@
       {% elif invoice.status == "sold" %}
         <p class="font-medium">Next step: when {{ invoice.deal.factor.name }} releases your reserve, record it.</p>
         <p class="mt-1 text-sm text-muted">You are still owed {{ invoice.bal|money:symbol }} before any fee they take.</p>
-        <div class="mt-3 flex flex-wrap gap-2">
+        <div class="mt-3">
           <a href="{% url 'work:invoice_release' invoice.pk %}" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-hand-holding-dollar"></i>Record the reserve</a>
-          {% if invoice.deal.recourse %}<a href="{% url 'work:invoice_chargeback' invoice.pk %}" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Customer never paid</a>{% endif %}
+        </div>
+        <div class="mt-4 border-t border-line pt-3 text-sm">
+          <p class="font-medium">Something went wrong?</p>
+          {% if invoice.deal.recourse %}
+            <p class="mt-0.5 text-muted">If your customer never paid and {{ invoice.deal.factor.name }} took the advance back, record a chargeback. The invoice goes back to open.</p>
+            <a href="{% url 'work:invoice_chargeback' invoice.pk %}" class="mt-2 inline-flex min-h-10 items-center gap-2 rounded-lg border border-line px-4 font-medium hover:border-negative hover:text-negative"><i class="fa-solid fa-rotate-left"></i>Record a chargeback</a>
+          {% else %}
+            <p class="mt-0.5 text-muted">This sale was without recourse, so the factoring company carries the loss if your customer never pays. There is nothing to charge back.</p>
+          {% endif %}
         </div>
       {% else %}
         {% if charged_back %}

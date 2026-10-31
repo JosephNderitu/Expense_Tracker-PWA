@@ -1,3 +1,4 @@
+{# templates/work/invoice_action.html #}
 {% extends "base.html" %}
 {% load static money %}
 {% block title %}{{ title }}{% endblock %}
@@ -20,7 +21,7 @@
     </div>
   </div>
 
-  <form method="post" class="space-y-4 rounded-card border border-line bg-surface p-6 shadow-card">
+  <form method="post" id="action-form" class="space-y-4 rounded-card border border-line bg-surface p-6 shadow-card">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="rounded-lg bg-negative/10 px-3.5 py-2.5 text-sm text-negative">{{ form.non_field_errors.0 }}</div>{% endif %}
 
@@ -76,6 +77,19 @@
       </div>
     {% endif %}
 
+    {% if mode == "release" or mode == "pay" or mode == "chargeback" %}
+      <div class="rounded-xl bg-accent/5 p-4 text-sm" aria-live="polite">
+        <p class="mb-2 font-medium">After this step</p>
+        <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5">
+          <dt class="text-muted">{% if mode == "chargeback" %}Advance repaid{% else %}Settled by this step{% endif %}</dt>
+          <dd id="pv-step" class="amount text-right font-semibold tabular-nums"></dd>
+          <dt class="text-muted">Still to come</dt>
+          <dd id="pv-left" class="amount text-right tabular-nums"></dd>
+        </dl>
+        <p id="pv-note" class="mt-2 text-muted"></p>
+      </div>
+    {% endif %}
+
     <div class="flex gap-3">
       <button class="min-h-11 flex-1 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90">{{ button }}</button>
       <a href="{% url 'work:job_detail' job.pk %}" class="grid min-h-11 flex-1 place-items-center rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Cancel</a>
@@ -90,6 +104,7 @@
 <script src="{% static 'js/typeahead.js' %}"></script>
 <script>
 (() => {
+  const form = document.getElementById("action-form");
   const amount = parseFloat("{{ invoice.amount|floatformat:'2u' }}");
   const days = {{ invoice.days_to_due }};
   const symbol = "{{ symbol }}";
@@ -102,29 +117,57 @@
     const advance = cents(amount * num("id_advance_pct") / 100);
     const reserve = cents(amount - advance);
     const fee = cents(amount * num("id_fee_rate_pct") / 100 + num("id_fee_flat"));
-    const checked = document.querySelector("input[name=fee_timing]:checked");
+    const checked = form.querySelector("input[name=fee_timing]:checked");
     const upfront = checked && checked.value === "upfront";
     $("pv-cash").textContent = fmt(upfront ? advance - fee : advance);
     $("pv-reserve").textContent = fmt(reserve);
     $("pv-fee").textContent = fmt(fee);
     $("pv-release").textContent = fmt(upfront ? reserve : reserve - fee);
     $("pv-net").textContent = fmt(amount - fee);
-    const pct = amount ? fee / amount * 100 : 0;
-    let cost = pct.toFixed(2) + "% of the invoice";
+    let cost = (amount ? fee / amount * 100 : 0).toFixed(2) + "% of the invoice";
     if (days > 0 && amount) cost += " · about " + (fee / amount * 365 / days * 100).toFixed(1) + "% a year";
     $("pv-cost").textContent = cost;
-    const warn = $("pv-warn");
     const bad = !upfront && fee > reserve;
-    warn.textContent = bad ? "The fee is bigger than the reserve. Choose 'Taken from the advance' or lower the fee." : "";
-    warn.classList.toggle("hidden", !bad);
+    $("pv-warn").textContent = bad ? "The fee is bigger than the reserve. Choose 'Taken from the advance' or lower the fee." : "";
+    $("pv-warn").classList.toggle("hidden", !bad);
   }
-  document.querySelector("form").addEventListener("input", update);
-  document.querySelector("form").addEventListener("change", update);
+  form.addEventListener("input", update);
+  form.addEventListener("change", update);
   update();
 })();
 </script>
-{% endif %}
-{% if mode == "edit" %}
+{% elif mode == "release" or mode == "pay" or mode == "chargeback" %}
+<script>
+(() => {
+  const form = document.getElementById("action-form");
+  const balance = parseFloat("{{ invoice.bal|floatformat:'2u' }}");
+  const mode = "{{ mode }}";
+  const symbol = "{{ symbol }}";
+  const $ = (id) => document.getElementById(id);
+  const num = (id) => parseFloat($(id) && $(id).value) || 0;
+  const fmt = (n) => (n < 0 ? "-" : "") + symbol + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  function update() {
+    let step, left, note = "";
+    if (mode === "chargeback") {
+      step = num("id_amount");
+      left = balance + step;
+      note = "The invoice goes back to open.";
+    } else {
+      step = num("id_received") + num("id_fee_withheld");
+      left = balance - step;
+      if (step > balance + 0.004) note = "That is more than the remaining balance.";
+      else if (left < 0.005) note = "This fully settles the invoice.";
+    }
+    $("pv-step").textContent = fmt(step);
+    $("pv-left").textContent = fmt(Math.max(left, 0));
+    $("pv-note").textContent = note;
+  }
+  form.addEventListener("input", update);
+  update();
+})();
+</script>
+{% elif mode == "edit" %}
 <script>
 (() => {
   const issue = document.getElementById("id_issue_date"), due = document.getElementById("id_due_date");
