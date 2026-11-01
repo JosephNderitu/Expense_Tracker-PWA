@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta 
 from decimal import Decimal
 
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, Max, Q, Sum
@@ -6,10 +6,12 @@ from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from apps.work.models import RECEIVED_KINDS, FuelDetail, Invoice, InvoiceEntry, Job
+from apps.planning.models import Bill, Budget
 
 from .constants import CURRENCY_SYMBOLS
 from .models import Transaction
 from .templatetags.money import money
+from .dates import add_months
 
 ZERO = Decimal("0")
 BASE = ExpressionWrapper(F("amount") * F("rate_to_base"), output_field=DecimalField(max_digits=24, decimal_places=8))
@@ -18,11 +20,6 @@ GROSS = F("gross_pay")
 _GENERAL = {"income": "Total income", "spent": "Total spent", "saved": "Saved this month"}
 LABELS = {"all": _GENERAL, "household": _GENERAL,
           "work": {"income": "Total earned", "spent": "Total spent", "saved": "Net profit"}}
-
-
-def add_months(d, n):
-    index = d.year * 12 + (d.month - 1) + n
-    return date(index // 12, index % 12 + 1, 1)
 
 
 def parse_month(raw, today):
@@ -143,6 +140,37 @@ def _work_cash(workspaces, start, end, symbol, today):
         attention.append({"job_id": i.job_id, "title": f"{who} · {money(i.bal, symbol)}", "text": text})
     return stats, attention[:5]
 
+def _budget_panel(workspaces, ledger_month, spent, scope):
+    budgets = list(Budget.objects.filter(workspace__in=workspaces, category__is_active=True).select_related("category", "workspace"))
+    if not budgets:
+        return None
+    actual = {r["category_id"]: r["t"] for r in _out(ledger_month).order_by().values("category_id").annotate(t=Sum(BASE))}
+    rows, total, used_total = [], ZERO, ZERO
+    for b in budgets:
+        used = actual.get(b.category_id, ZERO)
+        pct = used / b.amount * 100
+        total += b.amount
+        used_total += used
+        rows.append({
+            "name": b.category.name, "workspace": b.workspace.name, "color": b.category.color, "icon": b.category.icon,
+            "budget": b.amount, "actual": used, "left": b.amount - used, "pct": pct, "bar": int(min(pct, 100)),
+            "state": "over" if pct >= 100 else "near" if pct >= 80 else "ok",
+        })
+    rows.sort(key=lambda r: r["pct"], reverse=True)
+    overall = used_total / total * 100 if total else ZERO
+    return {
+        "rows": rows[:6], "more": max(len(rows) - 6, 0), "show_workspace": scope == "all",
+        "total": total, "spent": used_total, "left": total - used_total, "pct": overall, "bar": int(min(overall, 100)),
+        "state": "over" if overall >= 100 else "near" if overall >= 80 else "ok",
+        "unbudgeted": spent - used_total,
+    }
+
+
+def _bills_due(workspaces, today):
+    bills = Bill.objects.filter(
+        workspace__in=workspaces, is_active=True, next_due__lte=today + timedelta(days=30)
+    ).select_related("category", "workspace")
+    return [b for b in bills if b.days_to_due <= b.remind_days]
 
 def dashboard_data(user, scope, month_start):
     workspaces = list(user.workspaces.all() if scope == "all" else user.workspaces.filter(type=scope))
@@ -221,4 +249,6 @@ def dashboard_data(user, scope, month_start):
             "earned": earned, "spent": spending, "saved": saved_line,
             "categories": [{"name": c["name"], "color": c["color"], "total": float(c["total"])} for c in categories],
         },
+        "budget_panel": _budget_panel(workspaces, month_ledger, spent, scope),
+        "bills_due": _bills_due(workspaces, timezone.localdate())[:5],
     }

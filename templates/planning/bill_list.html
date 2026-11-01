@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Bills{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Bills</h1>
+      <p class="text-sm text-muted">Things that repeat. The next due date moves on by itself when you pay.</p>
+    </div>
+    <a href="{% url 'planning:bill_create' %}" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-plus"></i>Add bill</a>
+  </div>
+
+  {% if undo_bill %}
+    <div role="status" class="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-2 text-sm shadow-sm">
+      <i class="fa-solid fa-circle-check text-positive"></i>
+      <p class="flex-1">Recorded <strong>{{ undo_bill.name }}</strong>. Next due {{ undo_bill.next_due|date:"M j" }}.</p>
+      <form method="post" action="{% url 'planning:bill_undo' undo_bill.pk %}">
+        {% csrf_token %}<input type="hidden" name="next" value="{% url 'planning:bill_list' %}">
+        <button class="min-h-10 rounded-lg px-3 font-medium text-accent hover:bg-accent/10">Undo</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {% if mixed_currency %}
+    <div role="alert" class="flex items-start gap-3 rounded-xl border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">
+      <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+      <p>Household and Work use different currencies, so the totals below are not meaningful. Pick one workspace in the switch above.</p>
+    </div>
+  {% endif %}
+
+  {% if has_active %}
+    <div class="grid grid-cols-3 gap-3">
+      <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+        <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Fixed per month</p>
+        <p class="amount mt-1 truncate text-base font-semibold tabular-nums sm:text-xl">{{ monthly|money:symbol }}</p>
+      </div>
+      <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+        <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Next 30 days</p>
+        <p class="amount mt-1 truncate text-base font-semibold tabular-nums sm:text-xl">{{ next30|money:symbol }}</p>
+      </div>
+      <div class="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card">
+        <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">Overdue</p>
+        <p class="amount mt-1 truncate text-base font-semibold tabular-nums sm:text-xl {% if overdue_count %}text-negative{% endif %}">{{ overdue_total|money:symbol }}</p>
+      </div>
+    </div>
+
+    {% for title, key, items in sections %}
+      {% if items %}
+        <section class="rounded-card border border-line bg-surface p-2 shadow-card sm:p-3" aria-label="{{ title }}">
+          <h2 class="px-3 pb-1 pt-2 text-sm font-semibold uppercase tracking-wider {% if key == 'overdue' %}text-negative{% else %}text-muted{% endif %}">{{ title }}</h2>
+          <ul role="list" class="divide-y divide-line">
+            {% for b in items %}
+              <li class="flex items-center gap-2 px-1 py-2">
+                <a href="{% url 'planning:bill_detail' b.pk %}" class="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1 hover:bg-line/50">
+                  <span class="grid size-10 shrink-0 place-items-center rounded-full text-white" style="background: {{ b.category.color }}"><i class="fa-solid {{ b.category.icon }} text-sm"></i></span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-medium">{{ b.name }}</span>
+                    <span class="block truncate text-xs {% if b.days_to_due < 0 %}text-negative{% else %}text-muted{% endif %}">
+                      {% if b.days_to_due < 0 %}Overdue by {{ b.days_overdue }} day{{ b.days_overdue|pluralize }}{% elif b.days_to_due == 0 %}Due today{% else %}{{ b.next_due|date:"M j" }} · in {{ b.days_to_due }} day{{ b.days_to_due|pluralize }}{% endif %}
+                      · {{ b.get_frequency_display|lower }}
+                    </span>
+                  </span>
+                  <span class="text-right">
+                    <span class="amount block text-sm font-semibold tabular-nums">{{ b.amount|money_in:b.workspace.currency }}</span>
+                    {% if b.amount_varies %}<span class="block text-xs text-muted">usually</span>{% endif %}
+                  </span>
+                </a>
+                {% if b.amount_varies %}
+                  <a href="{% url 'planning:bill_pay' b.pk %}" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line">{% if b.is_income %}Received{% else %}Pay{% endif %}</a>
+                {% else %}
+                  <form method="post" action="{% url 'planning:bill_quickpay' b.pk %}" class="shrink-0">
+                    {% csrf_token %}
+                    <button class="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-accent/10 px-3 text-sm font-medium text-accent hover:bg-accent/20"><i class="fa-solid fa-check"></i>{% if b.is_income %}Received{% else %}Paid{% endif %}</button>
+                  </form>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    <div class="rounded-card border border-dashed border-line bg-surface p-10 text-center shadow-card">
+      <span class="mx-auto grid size-14 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-file-invoice text-xl"></i></span>
+      <h2 class="mt-4 text-lg font-semibold">No bills yet</h2>
+      <p class="mx-auto mt-1 max-w-sm text-sm text-muted">Add rent, electricity, internet or truck insurance once. The app reminds you and moves each due date forward when you pay.</p>
+      <a href="{% url 'planning:bill_create' %}" class="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-plus"></i>Add your first bill</a>
+    </div>
+  {% endif %}
+
+  {% if archived %}
+    <details class="rounded-card border border-line bg-surface p-4 shadow-card">
+      <summary class="cursor-pointer text-sm font-medium text-muted">No longer tracked ({{ archived|length }})</summary>
+      <ul role="list" class="mt-3 divide-y divide-line">
+        {% for b in archived %}
+          <li class="flex items-center gap-3 py-2 text-sm">
+            <a href="{% url 'planning:bill_detail' b.pk %}" class="min-w-0 flex-1 truncate hover:underline">{{ b.name }}</a>
+            <form method="post" action="{% url 'planning:bill_archive' b.pk %}">{% csrf_token %}<input type="hidden" name="restore" value="1"><button class="min-h-9 rounded-lg px-3 font-medium text-accent hover:bg-accent/10">Track again</button></form>
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
+  {% endif %}
+</div>
+{% endblock %}

@@ -100,6 +100,7 @@ def transaction_detail(request, pk):
         "maintenance": getattr(entry, "maintenance", None),
         "crumbs": crumbs(("Entries", reverse("core:transaction_list")), (entry.category.name, None)),
         "invoice_link": getattr(entry, "invoice_link", None),
+        "bill_payment": getattr(entry, "bill_payment", None),
     })
 
 def _owned_attachment(request, pk):
@@ -264,6 +265,10 @@ def transaction_delete(request, pk):
     if link:
         messages.info(request, "This entry belongs to an invoice. Change it from the job page, using Undo last step.")
         return redirect("work:job_detail", pk=link.invoice.job_id)
+    payment = getattr(entry, "bill_payment", None)
+    if payment:
+        messages.info(request, "This entry was created by a bill. Use Undo last payment on the bill page.")
+        return redirect("planning:bill_detail", pk=payment.bill_id)
     entry.deleted_at = timezone.now()
     entry.save(update_fields=["deleted_at", "updated_at"])
     request.session["undo_pk"] = entry.pk

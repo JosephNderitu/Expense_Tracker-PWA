@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Budgets{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-5">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Monthly budgets</h1>
+    <p class="text-sm text-muted">Set a limit for each category. Leave a row empty for no limit. The dashboard shows how close you are.</p>
+  </div>
+
+  {% if has_error %}<div role="alert" class="rounded-lg bg-negative/10 px-3.5 py-2.5 text-sm text-negative">Some amounts need fixing. Nothing was saved.</div>{% endif %}
+
+  <form method="post" id="budget-form" class="space-y-5">
+    {% csrf_token %}
+    {% for section in sections %}
+      <section class="rounded-card border border-line bg-surface p-4 shadow-card sm:p-5" aria-label="{{ section.workspace.name }} budgets">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-muted">{{ section.workspace.name }}</h2>
+          <p class="text-sm text-muted">Total <span class="amount font-semibold text-ink tabular-nums" data-total="{{ forloop.counter0 }}">{{ symbol }}0.00</span></p>
+        </div>
+        <ul role="list" class="mt-3 divide-y divide-line">
+          {% for r in section.rows %}
+            <li class="py-3">
+              <div class="flex items-center gap-3">
+                <span class="grid size-9 shrink-0 place-items-center rounded-full text-white" style="background: {{ r.cat.color }}"><i class="fa-solid {{ r.cat.icon }} text-xs"></i></span>
+                <label for="b_{{ r.cat.pk }}" class="min-w-0 flex-1 truncate text-sm font-medium">{{ r.cat.name }}</label>
+                <div class="relative w-32 shrink-0">
+                  <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">{{ symbol }}</span>
+                  <input id="b_{{ r.cat.pk }}" name="b_{{ r.cat.pk }}" value="{{ r.value }}" inputmode="decimal" placeholder="No limit" data-section="{{ forloop.parentloop.counter0 }}" data-budget
+                         class="block min-h-11 w-full rounded-lg border border-line bg-surface py-2 pl-7 pr-3 text-right text-sm tabular-nums text-ink placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30">
+                </div>
+              </div>
+              <div class="mt-1 flex items-center justify-between pl-12 text-xs text-muted">
+                <span>{% if r.avg %}Average last 3 months: <span class="amount tabular-nums">{{ r.avg|money:symbol }}</span>{% else %}No spending in the last 3 months{% endif %}</span>
+                {% if r.avg %}<button type="button" data-use-avg="{{ r.avg|floatformat:'2u' }}" data-target="b_{{ r.cat.pk }}" class="min-h-8 rounded-full px-3 font-medium text-accent hover:bg-accent/10">Use average</button>{% endif %}
+              </div>
+              {% if r.error %}<p class="mt-1 pl-12 text-xs text-negative">{{ r.error }}</p>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+
+    <div class="flex flex-wrap gap-3">
+      <button class="min-h-11 flex-1 rounded-lg bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90">Save budgets</button>
+      <button type="button" id="fill-all" class="min-h-11 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Fill empty rows with averages</button>
+      <a href="{% url 'core:dashboard' %}" class="grid min-h-11 place-items-center rounded-lg px-4 text-sm font-medium text-muted hover:bg-line/50">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const symbol = "{{ symbol }}";
+  const inputs = [...document.querySelectorAll("[data-budget]")];
+  const fmt = (n) => symbol + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const parse = (v) => parseFloat(String(v).replace(/,/g, "")) || 0;
+  function totals() {
+    const sums = {};
+    inputs.forEach((i) => { sums[i.dataset.section] = (sums[i.dataset.section] || 0) + parse(i.value); });
+    document.querySelectorAll("[data-total]").forEach((el) => { el.textContent = fmt(sums[el.dataset.total] || 0); });
+  }
+  document.querySelectorAll("[data-use-avg]").forEach((btn) => btn.addEventListener("click", () => {
+    document.getElementById(btn.dataset.target).value = btn.dataset.useAvg;
+    totals();
+  }));
+  document.getElementById("fill-all").addEventListener("click", () => {
+    document.querySelectorAll("[data-use-avg]").forEach((btn) => {
+      const input = document.getElementById(btn.dataset.target);
+      if (!input.value.trim()) input.value = btn.dataset.useAvg;
+    });
+    totals();
+  });
+  document.getElementById("budget-form").addEventListener("input", totals);
+  totals();
+})();
+</script>
+{% endblock %}

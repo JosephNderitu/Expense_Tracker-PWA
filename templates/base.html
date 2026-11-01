@@ -22,26 +22,59 @@
 <body class="min-h-full bg-canvas text-ink antialiased" data-scope="{{ scope }}">
   <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2">Skip to content</a>
 
-  <aside class="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface p-5 lg:flex">
+  {% with name=request.resolver_match.url_name app=request.resolver_match.app_name %}
+
+  <aside class="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col overflow-y-auto border-r border-line bg-surface p-5 lg:flex">
     <a href="{% url 'core:dashboard' %}" class="flex items-center gap-3 px-2 font-semibold">
       <span class="grid size-10 place-items-center rounded-xl bg-accent text-on-accent"><i class="fa-solid fa-wallet"></i></span>
       Expense Tracker
     </a>
-    <nav class="mt-8 space-y-1 text-sm" aria-label="Main">
-      <a href="{% url 'core:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}
-         class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if request.resolver_match.url_name == 'dashboard' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
-        <i class="fa-solid fa-chart-pie w-5 text-center"></i>Overview
-      </a>
-      <a href="{% url 'core:transaction_list' %}" {% if request.resolver_match.url_name == 'transaction_list' %}aria-current="page"{% endif %}
-         class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if request.resolver_match.url_name == 'transaction_list' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
-        <i class="fa-solid fa-list w-5 text-center"></i>Entries
-      </a>
-      <a href="{% url 'core:transaction_create' %}" {% if request.resolver_match.url_name == 'transaction_create' %}aria-current="page"{% endif %}
-         class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if request.resolver_match.url_name == 'transaction_create' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
-        <i class="fa-solid fa-plus w-5 text-center"></i>Add entry
-      </a>
+
+    <nav class="mt-6 text-sm" aria-label="Main">
+      <div class="space-y-1">
+        <a href="{% url 'core:dashboard' %}" {% if name == 'dashboard' %}aria-current="page"{% endif %}
+           class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if name == 'dashboard' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+          <i class="fa-solid fa-chart-pie w-5 text-center"></i>Overview
+        </a>
+        <a href="{% url 'core:transaction_list' %}" {% if name == 'transaction_list' or name == 'transaction_detail' or name == 'transaction_edit' or name == 'transaction_trash' %}aria-current="page"{% endif %}
+           class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if name == 'transaction_list' or name == 'transaction_detail' or name == 'transaction_edit' or name == 'transaction_trash' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+          <i class="fa-solid fa-list w-5 text-center"></i>Entries
+        </a>
+        <a href="{% url 'core:transaction_create' %}" {% if name == 'transaction_create' %}aria-current="page"{% endif %}
+           class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if name == 'transaction_create' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+          <i class="fa-solid fa-plus w-5 text-center"></i>Add entry
+        </a>
+      </div>
+
+      {% if scope != "household" %}
+        <p class="px-3 pb-1 pt-5 text-xs font-medium uppercase tracking-wider text-muted">Work</p>
+        <div class="space-y-1">
+          <a href="{% url 'work:job_list' %}" {% if app == 'work' and 'invoice' not in name %}aria-current="page"{% endif %}
+             class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if app == 'work' and 'invoice' not in name %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+            <i class="fa-solid fa-route w-5 text-center"></i>Jobs
+          </a>
+          <a href="{% url 'work:invoice_list' %}" {% if app == 'work' and 'invoice' in name %}aria-current="page"{% endif %}
+             class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if app == 'work' and 'invoice' in name %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+            <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i>Invoices
+          </a>
+        </div>
+      {% endif %}
+
+      <p class="px-3 pb-1 pt-5 text-xs font-medium uppercase tracking-wider text-muted">Planning</p>
+      <div class="space-y-1">
+        <a href="{% url 'planning:bill_list' %}" {% if app == 'planning' and name != 'budget_edit' %}aria-current="page"{% endif %}
+           class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if app == 'planning' and name != 'budget_edit' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+          <i class="fa-solid fa-file-invoice w-5 text-center"></i>Bills
+          {% if bills_due_count %}<span class="ml-auto rounded-full bg-negative px-2 py-0.5 text-xs font-medium text-white" aria-label="{{ bills_due_count }} bills need attention">{{ bills_due_count }}</span>{% endif %}
+        </a>
+        <a href="{% url 'planning:budget_edit' %}" {% if name == 'budget_edit' %}aria-current="page"{% endif %}
+           class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if name == 'budget_edit' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+          <i class="fa-solid fa-bullseye w-5 text-center"></i>Budgets
+        </a>
+      </div>
     </nav>
-    <div class="mt-auto space-y-1 text-sm">{% include "partials/_prefs.html" %}</div>
+
+    <div class="mt-auto space-y-1 pt-6 text-sm">{% include "partials/_prefs.html" %}</div>
   </aside>
 
   <div class="lg:pl-64">
@@ -76,22 +109,32 @@
 
   <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Primary">
     <div class="mx-auto grid max-w-md grid-cols-3 items-center px-4">
-      <a href="{% url 'core:dashboard' %}" class="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs {% if request.resolver_match.url_name == 'dashboard' %}font-medium text-accent{% else %}text-muted{% endif %}">
+      <a href="{% url 'core:dashboard' %}" class="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs {% if name == 'dashboard' %}font-medium text-accent{% else %}text-muted{% endif %}">
         <i class="fa-solid fa-chart-pie text-lg"></i>Overview
       </a>
-      <a href="{% url 'core:transaction_list' %}" class="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs {% if request.resolver_match.url_name == 'transaction_list' %}font-medium text-accent{% else %}text-muted{% endif %}">
+      <a href="{% url 'core:transaction_list' %}" class="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs {% if name == 'transaction_list' %}font-medium text-accent{% else %}text-muted{% endif %}">
         <i class="fa-solid fa-list text-lg"></i>Entries
       </a>
       <details class="relative text-center">
-        <summary class="flex min-h-14 cursor-pointer list-none flex-col items-center justify-center gap-0.5 text-xs text-muted [&::-webkit-details-marker]:hidden">
+        <summary class="relative flex min-h-14 cursor-pointer list-none flex-col items-center justify-center gap-0.5 text-xs text-muted [&::-webkit-details-marker]:hidden">
           <i class="fa-solid fa-bars text-lg"></i>Menu
+          {% if bills_due_count %}<span class="absolute right-1/4 top-2 size-2.5 rounded-full bg-negative" aria-hidden="true"></span>{% endif %}
         </summary>
-        <div class="absolute bottom-16 right-0 w-56 space-y-1 rounded-2xl border border-line bg-surface p-2 text-left text-sm shadow-card">
+        <div class="absolute bottom-16 right-0 max-h-[70vh] w-56 space-y-1 overflow-y-auto rounded-2xl border border-line bg-surface p-2 text-left text-sm shadow-card">
+          {% if scope != "household" %}
+            <a href="{% url 'work:job_list' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-route w-5 text-center"></i><span>Jobs</span></a>
+            <a href="{% url 'work:invoice_list' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i><span>Invoices</span></a>
+          {% endif %}
+          <a href="{% url 'planning:bill_list' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-file-invoice w-5 text-center"></i><span>Bills</span>{% if bills_due_count %}<span class="ml-auto rounded-full bg-negative px-2 py-0.5 text-xs font-medium text-white">{{ bills_due_count }}</span>{% endif %}</a>
+          <a href="{% url 'planning:budget_edit' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-bullseye w-5 text-center"></i><span>Budgets</span></a>
+          <div class="my-1 border-t border-line"></div>
           {% include "partials/_prefs.html" %}
         </div>
       </details>
     </div>
   </nav>
+
+  {% endwith %}
 
   <script>
   (() => {

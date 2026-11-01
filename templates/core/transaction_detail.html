@@ -19,12 +19,17 @@
         <span class="hidden rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent sm:inline">{{ entry.get_direction_display }}</span>
         {% if invoice_link %}
           <a href="{% url 'work:job_detail' invoice_link.invoice.job_id %}" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-accent px-3 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-route"></i>View job</a>
+        {% elif bill_payment %}
+          <a href="{% url 'planning:bill_detail' bill_payment.bill_id %}" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line"><i class="fa-solid fa-file-invoice"></i>View bill</a>
+          <a href="{% url 'core:transaction_edit' entry.pk %}" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line"><i class="fa-solid fa-pen"></i><span class="hidden sm:inline">Edit</span></a>
         {% else %}
           <a href="{% url 'core:transaction_edit' entry.pk %}" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line"><i class="fa-solid fa-pen"></i><span class="hidden sm:inline">Edit</span></a>
-          <form method="post" action="{% url 'core:transaction_delete' entry.pk %}" onsubmit="return confirm('Delete this entry? You can restore it from Recently deleted.')">
-            {% csrf_token %}
-            <button class="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-negative hover:bg-negative/10" aria-label="Delete entry"><i class="fa-solid fa-trash"></i><span class="hidden sm:inline">Delete</span></button>
-          </form>
+          {% if not bill_payment %}
+            <form method="post" action="{% url 'core:transaction_delete' entry.pk %}" onsubmit="return confirm('Delete this entry? You can restore it from Recently deleted.')">
+              {% csrf_token %}
+              <button class="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-negative hover:bg-negative/10" aria-label="Delete entry"><i class="fa-solid fa-trash"></i><span class="hidden sm:inline">Delete</span></button>
+            </form>
+          {% endif %}
         {% endif %}
       </div>
     </div>

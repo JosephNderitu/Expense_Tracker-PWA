@@ -59,6 +59,28 @@
         </ul>
       </section>
     {% endif %}
+
+    {% if bills_due %}
+      <section class="reveal rounded-card border border-line bg-surface p-5 shadow-card" aria-labelledby="bills-title">
+        <div class="flex items-center justify-between">
+          <h2 id="bills-title" class="text-sm font-semibold uppercase tracking-wider text-muted">Bills to pay</h2>
+          <a href="{% url 'planning:bill_list' %}" class="text-sm font-medium text-accent hover:underline">View all</a>
+        </div>
+        <ul role="list" class="mt-3 divide-y divide-line">
+          {% for b in bills_due %}
+            <li class="flex items-center gap-3 py-3">
+              <span class="grid size-10 shrink-0 place-items-center rounded-full text-white" style="background: {{ b.category.color }}"><i class="fa-solid {{ b.category.icon }} text-sm"></i></span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium">{{ b.name }}</span>
+                <span class="block truncate text-xs {% if b.days_to_due < 0 %}text-negative{% else %}text-muted{% endif %}">{% if b.days_to_due < 0 %}Overdue by {{ b.days_overdue }} day{{ b.days_overdue|pluralize }}{% elif b.days_to_due == 0 %}Due today{% else %}Due in {{ b.days_to_due }} day{{ b.days_to_due|pluralize }}{% endif %}</span>
+              </span>
+              <span class="amount text-sm font-semibold tabular-nums">{{ b.amount|money_in:b.workspace.currency }}</span>
+              <a href="{% url 'planning:bill_pay' b.pk %}" class="inline-flex min-h-10 items-center rounded-lg bg-accent/10 px-3 text-sm font-medium text-accent hover:bg-accent/20">{% if b.is_income %}Received{% else %}Pay{% endif %}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
   {% endif %}
 
   {% if not has_any %}
@@ -222,6 +244,44 @@
         </ul>
       </section>
     </div>
+
+    {% if budget_panel %}
+      <section class="reveal rounded-card border border-line bg-surface p-5 shadow-card" aria-labelledby="budget-title">
+        <div class="flex items-center justify-between">
+          <h2 id="budget-title" class="text-sm font-semibold uppercase tracking-wider text-muted">Budget vs actual</h2>
+          <a href="{% url 'planning:budget_edit' %}" class="text-sm font-medium text-accent hover:underline">Manage budgets</a>
+        </div>
+        <div class="mt-4">
+          <div class="flex items-baseline justify-between gap-3 text-sm">
+            <span><span class="amount text-xl font-semibold tabular-nums">{{ budget_panel.spent|money:symbol }}</span> <span class="text-muted">of {{ budget_panel.total|money:symbol }}</span></span>
+            <span class="font-medium {% if budget_panel.state == 'over' %}text-negative{% elif budget_panel.state == 'near' %}text-amber-500{% else %}text-muted{% endif %}">
+              {% if budget_panel.left < 0 %}Over by {{ budget_panel.left|money:symbol|cut:"-" }}{% else %}{{ budget_panel.left|money:symbol }} left{% endif %}
+            </span>
+          </div>
+          <div class="mt-2 h-2.5 overflow-hidden rounded-full bg-line"><span data-bar class="block h-full rounded-full {% if budget_panel.state == 'over' %}bg-negative{% elif budget_panel.state == 'near' %}bg-amber-500{% else %}bg-accent{% endif %}" style="width: {{ budget_panel.bar }}%"></span></div>
+        </div>
+        <ul role="list" class="mt-4 space-y-3">
+          {% for r in budget_panel.rows %}
+            <li>
+              <div class="flex items-center gap-3 text-sm">
+                <span class="grid size-8 shrink-0 place-items-center rounded-full text-white" style="background: {{ r.color }}"><i class="fa-solid {{ r.icon }} text-xs"></i></span>
+                <span class="min-w-0 flex-1 truncate font-medium">{{ r.name }}{% if budget_panel.show_workspace %} <span class="font-normal text-muted">· {{ r.workspace }}</span>{% endif %}</span>
+                <span class="amount shrink-0 text-xs text-muted tabular-nums">{{ r.actual|money:symbol }} / {{ r.budget|money:symbol }}</span>
+                <span class="w-12 shrink-0 text-right text-xs font-medium {% if r.state == 'over' %}text-negative{% elif r.state == 'near' %}text-amber-500{% else %}text-muted{% endif %}">{{ r.pct|floatformat:0 }}%</span>
+              </div>
+              <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line"><span data-bar class="block h-full rounded-full {% if r.state == 'over' %}bg-negative{% elif r.state == 'near' %}bg-amber-500{% else %}bg-accent{% endif %}" style="width: {{ r.bar }}%"></span></div>
+            </li>
+          {% endfor %}
+        </ul>
+        {% if budget_panel.more %}<p class="mt-3 text-xs text-muted">and {{ budget_panel.more }} more with lower use</p>{% endif %}
+        {% if budget_panel.unbudgeted > 0 %}<p class="mt-3 text-xs text-muted">{{ budget_panel.unbudgeted|money:symbol }} was spent in categories with no budget.</p>{% endif %}
+      </section>
+    {% else %}
+      <a href="{% url 'planning:budget_edit' %}" class="reveal flex items-center gap-4 rounded-card border border-dashed border-line bg-surface p-5 shadow-card hover:border-accent">
+        <span class="grid size-11 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-bullseye"></i></span>
+        <span><span class="block font-semibold">Set monthly budgets</span><span class="block text-sm text-muted">Give each category a limit and see how close you are, right here.</span></span>
+      </a>
+    {% endif %}
 
     {% if recent_jobs %}
       <section class="reveal rounded-card border border-line bg-surface p-5 shadow-card" aria-labelledby="jobs-title">
