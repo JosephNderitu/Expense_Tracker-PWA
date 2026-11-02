@@ -1,7 +1,9 @@
 # apps/accounts/forms.py
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm, PasswordChangeForm
 from apps.core.forms import INPUT, StyledFormMixin
+from .constants import TIMEZONES
+from .models import User
 
 
 class LoginForm(StyledFormMixin, AuthenticationForm):
@@ -18,4 +20,16 @@ class ResetRequestForm(StyledFormMixin, PasswordResetForm):
 
 
 class ResetConfirmForm(StyledFormMixin, SetPasswordForm):
+    pass
+
+class ProfileForm(StyledFormMixin, forms.ModelForm):
+    timezone = forms.ChoiceField(choices=TIMEZONES, label="Time zone", help_text="Decides what counts as today for dates, bills and alerts.")
+
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "timezone"]
+        labels = {"first_name": "First name", "last_name": "Last name"}
+
+
+class StyledPasswordChangeForm(StyledFormMixin, PasswordChangeForm):
     pass

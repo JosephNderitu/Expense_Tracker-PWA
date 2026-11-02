@@ -1,6 +1,7 @@
 # apps/core/urls.py
 from django.urls import path
 from . import views
+from . import manage_views
 
 app_name = "core"
 
@@ -19,4 +20,11 @@ urlpatterns = [
     path("transactions/<int:pk>/edit/", views.transaction_edit, name="transaction_edit"),
     path("transactions/<int:pk>/delete/", views.transaction_delete, name="transaction_delete"),
     path("transactions/<int:pk>/restore/", views.transaction_restore, name="transaction_restore"),
+
+
+    path("settings/categories/", manage_views.category_list, name="category_list"),
+    path("settings/categories/new/", manage_views.category_create, name="category_create"),
+    path("settings/categories/<int:pk>/", manage_views.category_edit, name="category_edit"),
+    path("settings/categories/<int:pk>/toggle/", manage_views.category_toggle, name="category_toggle"),
+    path("settings/categories/<int:pk>/delete/", manage_views.category_delete, name="category_delete"),
 ]

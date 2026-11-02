@@ -1,0 +1,47 @@
+{# templates/notifications/inbox.html #}
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-5">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Notifications</h1>
+      <p class="text-sm text-muted">Bills, invoices and budgets that need you.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <form method="post" action="{% url 'notifications:refresh' %}">{% csrf_token %}<button class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line"><i class="fa-solid fa-rotate"></i>Check now</button></form>
+      {% if has_unread %}<form method="post" action="{% url 'notifications:mark_all' %}">{% csrf_token %}<button class="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-accent hover:bg-accent/10"><i class="fa-solid fa-check-double"></i>Mark all read</button></form>{% endif %}
+      <a href="{% url 'notifications:prefs' %}" class="grid size-10 place-items-center rounded-full text-muted hover:bg-line/50 hover:text-ink" aria-label="Notification settings"><i class="fa-solid fa-gear"></i></a>
+    </div>
+  </div>
+
+  <section class="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+    {% if items %}
+      <ul role="list" class="divide-y divide-line">
+        {% for n in items %}
+          <li>
+            <a href="{% url 'notifications:open' n.pk %}" class="flex items-start gap-3 px-4 py-3.5 hover:bg-line/50 {% if not n.read_at %}bg-accent/5{% endif %}">
+              <span class="mt-0.5 grid size-10 shrink-0 place-items-center rounded-full {% if n.tone == 'bad' %}bg-negative/10 text-negative{% elif n.tone == 'warn' %}bg-amber-500/15 text-amber-600{% else %}bg-accent/10 text-accent{% endif %}">
+                <i class="fa-solid {% if n.tone == 'bad' %}fa-circle-exclamation{% elif n.tone == 'warn' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-sm {% if not n.read_at %}font-semibold{% else %}font-medium{% endif %}">{{ n.title }}</span>
+                {% if n.body %}<span class="block text-sm text-muted">{{ n.body }}</span>{% endif %}
+                <span class="mt-0.5 block text-xs text-muted">{{ n.created_at|timesince }} ago</span>
+              </span>
+              {% if not n.read_at %}<span class="mt-2 size-2.5 shrink-0 rounded-full bg-accent" aria-label="Unread"></span>{% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="p-10 text-center">
+        <span class="mx-auto grid size-14 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-regular fa-bell text-xl"></i></span>
+        <h2 class="mt-4 text-lg font-semibold">All clear</h2>
+        <p class="mx-auto mt-1 max-w-sm text-sm text-muted">Alerts appear here when a bill is coming due, an invoice is late, or a budget is nearly used up.</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

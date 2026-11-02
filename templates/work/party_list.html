@@ -1,0 +1,31 @@
+{# templates/work/party_list.html #}
+{% extends "base.html" %}
+{% block title %}Brokers and factoring companies{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6">
+  <div><h1 class="text-2xl font-semibold tracking-tight">Brokers and factoring companies</h1><p class="text-sm text-muted">Names save themselves the first time you type them. Tidy them up here.</p></div>
+
+  <section aria-label="Brokers and customers">
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">Brokers and customers</h2>
+    <ul role="list" class="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
+      {% for p in brokers %}
+        <li><a href="{% url 'work:party_edit' p.pk %}" class="flex items-center gap-3 px-4 py-3 hover:bg-line/50">
+          <span class="min-w-0 flex-1"><span class="block truncate font-medium">{{ p.name }}</span><span class="block text-xs text-muted">{{ p.job_count }} job{{ p.job_count|pluralize }} · pays in {{ p.terms_days }} days</span></span>
+          <i class="fa-solid fa-chevron-right text-xs text-muted"></i></a></li>
+      {% empty %}<li class="px-4 py-6 text-center text-sm text-muted">None yet. They appear when you add a job with a broker.</li>{% endfor %}
+    </ul>
+  </section>
+
+  <section aria-label="Factoring companies">
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">Factoring companies</h2>
+    <ul role="list" class="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
+      {% for p in factors %}
+        <li><a href="{% url 'work:party_edit' p.pk %}" class="flex items-center gap-3 px-4 py-3 hover:bg-line/50">
+          <span class="min-w-0 flex-1"><span class="block truncate font-medium">{{ p.name }}</span><span class="block text-xs text-muted">{{ p.deal_count }} sale{{ p.deal_count|pluralize }}</span></span>
+          <i class="fa-solid fa-chevron-right text-xs text-muted"></i></a></li>
+      {% empty %}<li class="px-4 py-6 text-center text-sm text-muted">None yet. They appear when you sell an invoice.</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

@@ -71,14 +71,20 @@
            class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if name == 'budget_edit' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
           <i class="fa-solid fa-bullseye w-5 text-center"></i>Budgets
         </a>
-                <a href="{% url 'reports:history' %}" {% if app == 'reports' %}aria-current="page"{% endif %}
+            <a href="{% url 'reports:history' %}" {% if app == 'reports' %}aria-current="page"{% endif %}
            class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if app == 'reports' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
           <i class="fa-solid fa-file-pdf w-5 text-center"></i>Reports
         </a>
       </div>
     </nav>
 
-    <div class="mt-auto space-y-1 pt-6 text-sm">{% include "partials/_prefs.html" %}</div>
+    <div class="mt-auto space-y-1 pt-6 text-sm">
+      <a href="{% url 'accounts:settings' %}" {% if name == 'settings' or name == 'profile' or name == 'password_change' or name == 'category_list' or name == 'category_create' or name == 'category_edit' or name == 'truck_list' or name == 'truck_create' or name == 'truck_edit' or name == 'party_list' or name == 'party_edit' or name == 'prefs' or name == 'branding' %}aria-current="page"{% endif %}
+         class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if name == 'settings' or name == 'profile' or name == 'password_change' or name == 'category_list' or name == 'category_create' or name == 'category_edit' or name == 'truck_list' or name == 'truck_create' or name == 'truck_edit' or name == 'party_list' or name == 'party_edit' or name == 'prefs' or name == 'branding' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+        <i class="fa-solid fa-gear w-5 text-center"></i>Settings
+      </a>
+      {% include "partials/_prefs.html" %}
+    </div>
   </aside>
 
   <div class="lg:pl-64">
@@ -88,10 +94,16 @@
           <i class="fa-solid fa-wallet"></i><span class="sr-only">Expense Tracker home</span>
         </a>
         {% include "partials/_scope_switch.html" %}
-        <a href="{% url 'core:transaction_create' %}" class="hidden min-h-11 items-center gap-2 rounded-full bg-accent px-4 text-sm font-medium text-on-accent shadow-sm hover:opacity-90 lg:inline-flex">
-          <i class="fa-solid fa-plus"></i>Add entry
-          <kbd class="rounded bg-black/15 px-1.5 text-xs">N</kbd>
-        </a>
+        <div class="flex items-center gap-1">
+          <a href="{% url 'notifications:inbox' %}" class="relative grid size-11 place-items-center rounded-full text-muted hover:bg-line/50 hover:text-ink" aria-label="Notifications{% if unread_count %}, {{ unread_count }} unread{% endif %}">
+            <i class="fa-regular fa-bell text-lg"></i>
+            {% if unread_count %}<span class="absolute right-1 top-1 grid min-w-5 place-items-center rounded-full bg-negative px-1 text-[0.65rem] font-semibold leading-5 text-white">{{ unread_count }}</span>{% endif %}
+          </a>
+          <a href="{% url 'core:transaction_create' %}" class="hidden min-h-11 items-center gap-2 rounded-full bg-accent px-4 text-sm font-medium text-on-accent shadow-sm hover:opacity-90 lg:inline-flex">
+            <i class="fa-solid fa-plus"></i>Add entry
+            <kbd class="rounded bg-black/15 px-1.5 text-xs">N</kbd>
+          </a>
+        </div>
       </div>
     </header>
 
@@ -131,7 +143,8 @@
           {% endif %}
           <a href="{% url 'planning:bill_list' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-file-invoice w-5 text-center"></i><span>Bills</span>{% if bills_due_count %}<span class="ml-auto rounded-full bg-negative px-2 py-0.5 text-xs font-medium text-white">{{ bills_due_count }}</span>{% endif %}</a>
           <a href="{% url 'planning:budget_edit' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-bullseye w-5 text-center"></i><span>Budgets</span></a>
-                    <a href="{% url 'reports:history' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-file-pdf w-5 text-center"></i><span>Reports</span></a>
+                <a href="{% url 'reports:history' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-file-pdf w-5 text-center"></i><span>Reports</span></a>
+          <a href="{% url 'accounts:settings' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-gear w-5 text-center"></i><span>Settings</span></a>
           <div class="my-1 border-t border-line"></div>
           {% include "partials/_prefs.html" %}
         </div>

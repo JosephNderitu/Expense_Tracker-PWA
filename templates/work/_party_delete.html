@@ -1,0 +1,5 @@
+{# templates/work/_party_delete.html #}
+<form method="post" action="{% url 'work:party_delete' party.pk %}" onsubmit="return confirm('Delete this name? This only works if no job or sale uses it.')">
+  {% csrf_token %}
+  <button class="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-negative hover:bg-negative/10"><i class="fa-solid fa-trash"></i>Delete</button>
+</form>

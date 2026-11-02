@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <h1 class="text-2xl font-semibold tracking-tight">Settings</h1>
+  {% for title, items in groups %}
+    <section aria-label="{{ title }}">
+      <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">{{ title }}</h2>
+      <ul role="list" class="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
+        {% for icon, name, hint, url in items %}
+          <li>
+            <a href="{{ url }}" class="flex min-h-16 items-center gap-4 px-4 py-3 hover:bg-line/50">
+              <span class="grid size-11 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid {{ icon }}"></i></span>
+              <span class="min-w-0 flex-1"><span class="block font-medium">{{ name }}</span><span class="block truncate text-sm text-muted">{{ hint }}</span></span>
+              <i class="fa-solid fa-chevron-right text-xs text-muted"></i>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+</div>
+{% endblock %}

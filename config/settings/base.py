@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "django_filters",
-    "apps.accounts", "apps.core", "apps.work", "apps.planning", "apps.reports",
+    "apps.accounts", "apps.core", "apps.work", "apps.planning", "apps.reports", "apps.notifications",
     "django_tailwind_cli",
     "axes",
 ]
@@ -59,6 +59,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    "apps.accounts.middleware.UserTimezoneMiddleware",
+    "apps.notifications.middleware.AlertsMiddleware",
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'axes.middleware.AxesMiddleware',
@@ -75,6 +77,7 @@ TEMPLATES = [{
         "django.template.context_processors.request",
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
+        "apps.notifications.context.unread",
     ]},
 }]
 

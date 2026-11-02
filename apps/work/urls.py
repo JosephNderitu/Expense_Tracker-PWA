@@ -1,6 +1,7 @@
 # apps/work/urls.py
 from django.urls import path
 from . import views
+from . import manage_views
 
 app_name = "work"
 
@@ -24,4 +25,11 @@ urlpatterns = [
     path("invoices/<int:pk>/chargeback/", views.invoice_chargeback, name="invoice_chargeback"),
     path("invoices/<int:pk>/edit/", views.invoice_edit, name="invoice_edit"),
     path("invoices/<int:pk>/undo/", views.invoice_undo, name="invoice_undo"),
+
+    path("trucks/", manage_views.truck_list, name="truck_list"),
+    path("trucks/new/", manage_views.truck_create, name="truck_create"),
+    path("trucks/<int:pk>/", manage_views.truck_edit, name="truck_edit"),
+    path("parties/", manage_views.party_list, name="party_list"),
+    path("parties/<int:pk>/", manage_views.party_edit, name="party_edit"),
+    path("parties/<int:pk>/delete/", manage_views.party_delete, name="party_delete"),
 ]

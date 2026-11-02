@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg space-y-4">
+  <div>
+    <h1 class="text-xl font-semibold tracking-tight">{{ title }}</h1>
+    {% if intro %}<p class="mt-1 text-sm text-muted">{{ intro }}</p>{% endif %}
+  </div>
+  <form method="post" class="space-y-4 rounded-card border border-line bg-surface p-6 shadow-card">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-lg bg-negative/10 px-3.5 py-2.5 text-sm text-negative">{{ form.non_field_errors.0 }}</div>{% endif %}
+    {% for field in form %}
+      {% if field.is_hidden %}{{ field }}
+      {% elif field.widget_type == "checkbox" %}
+        <label class="flex items-start gap-3 text-sm">{{ field }}<span>{{ field.label }}{% if field.help_text %}<span class="block text-xs text-muted">{{ field.help_text }}</span>{% endif %}</span></label>
+      {% else %}{% include "accounts/_field.html" with field=field %}{% endif %}
+    {% endfor %}
+    <div class="flex gap-3">
+      <button class="min-h-11 flex-1 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90">{{ button|default:"Save" }}</button>
+      <a href="{{ cancel_url }}" class="grid min-h-11 flex-1 place-items-center rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Cancel</a>
+    </div>
+  </form>
+  {% if extra_template %}{% include extra_template %}{% endif %}
+</div>
+{% endblock %}

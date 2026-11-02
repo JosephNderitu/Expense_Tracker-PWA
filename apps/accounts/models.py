@@ -24,3 +24,4 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
     objects = UserManager()
+    timezone = models.CharField(max_length=40, default="America/New_York")

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Categories{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Categories</h1>
+    <p class="text-sm text-muted">How your entries are grouped. Hidden categories disappear from forms but keep their history.</p>
+  </div>
+  {% for section in sections %}
+    <section class="space-y-3" aria-label="{{ section.workspace.name }} categories">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-muted">{{ section.workspace.name }}</h2>
+        <a href="{% url 'core:category_create' %}?workspace={{ section.workspace.type }}" class="inline-flex min-h-10 items-center gap-2 rounded-full bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-plus"></i>Add</a>
+      </div>
+      {% for label, cats in section.groups %}
+        {% if cats %}
+          <div class="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+            <p class="border-b border-line px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted">{{ label }}</p>
+            <ul role="list" class="divide-y divide-line">
+              {% for c in cats %}
+                <li class="flex items-center gap-3 px-4 py-2.5 {% if not c.is_active %}opacity-60{% endif %}">
+                  <a href="{% url 'core:category_edit' c.pk %}" class="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-1 hover:text-accent">
+                    <span class="grid size-10 shrink-0 place-items-center rounded-full text-white" style="background: {{ c.color }}"><i class="fa-solid {{ c.icon }} text-sm"></i></span>
+                    <span class="min-w-0"><span class="block truncate text-sm font-medium">{{ c.name }}</span><span class="block text-xs text-muted">{{ c.uses }} entr{{ c.uses|pluralize:"y,ies" }}{% if not c.is_active %} · hidden{% endif %}</span></span>
+                  </a>
+                  <form method="post" action="{% url 'core:category_toggle' c.pk %}">{% csrf_token %}<button class="min-h-9 rounded-lg px-3 text-sm font-medium text-muted hover:bg-line/50 hover:text-ink">{% if c.is_active %}Hide{% else %}Show{% endif %}</button></form>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </section>
+  {% endfor %}
+</div>
+{% endblock %}

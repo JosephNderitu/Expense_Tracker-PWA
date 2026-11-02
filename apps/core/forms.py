@@ -1,13 +1,14 @@
 # apps/core/forms.py
 from decimal import Decimal
+import re
 
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db import transaction as db_transaction
-from django.db.models import Q
+from django.db.models import Q, Max
 
-from .constants import SUPPORTED_CURRENCIES
-from .models import Attachment, Transaction
+from .constants import SUPPORTED_CURRENCIES, ICON_CHOICES, SYSTEM_CATEGORIES
+from .models import Attachment, Category, Transaction
 from .validators import ACCEPT, MAX_PER_ENTRY, clean_uploads
 
 INPUT = (
@@ -20,7 +21,11 @@ class StyledFormMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
-            field.widget.attrs.setdefault("class", INPUT)
+            widget = field.widget
+            if isinstance(widget, (forms.CheckboxInput, forms.RadioSelect)):
+                widget.attrs.setdefault("class", "size-4")
+            else:
+                widget.attrs.setdefault("class", INPUT)
 
 
 class MultipleFileInput(forms.ClearableFileInput):
@@ -126,3 +131,46 @@ class AttachmentUploadForm(StyledFormMixin, forms.Form):
             for upload in files:
                 Attachment.objects.create(file=upload, kind=self.cleaned_data["attachment_kind"], **owner)
         return len(files)
+    
+class CategoryForm(StyledFormMixin, forms.ModelForm):
+    icon = forms.ChoiceField(choices=[(i, i) for i in ICON_CHOICES])
+
+    class Meta:
+        model = Category
+        fields = ["name", "kind", "icon", "color", "is_active"]
+        widgets = {"kind": forms.RadioSelect, "color": forms.TextInput(attrs={"type": "color"})}
+        labels = {"is_active": "Show in forms and lists"}
+
+    def __init__(self, *args, workspace, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.workspace = workspace
+        self.instance.workspace = workspace
+        self.fields["color"].widget.attrs["class"] = "h-11 w-20 cursor-pointer rounded-lg border border-line bg-surface p-1"
+        if self.instance.pk:
+            self.fields["kind"].disabled = True        # changing it would flip the direction of existing entries
+
+    def clean_name(self):
+        name = " ".join(self.cleaned_data["name"].split())
+        locked = self.instance.pk and self.workspace.type == "work" and self.instance.name in SYSTEM_CATEGORIES
+        if locked and name != self.instance.name:
+            raise ValidationError("The work screens rely on this name, so it cannot be renamed. You can change its icon and colour.")
+        return name
+
+    def clean_color(self):
+        color = self.cleaned_data["color"]
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+            raise ValidationError("Choose a colour from the picker.")
+        return color
+
+    def clean(self):
+        data = super().clean()
+        name, kind = data.get("name"), data.get("kind") or self.instance.kind
+        if name and Category.objects.filter(workspace=self.workspace, kind=kind, name__iexact=name).exclude(pk=self.instance.pk).exists():
+            self.add_error("name", "You already have a category with this name.")
+        return data
+
+    def save(self, commit=True):
+        if not self.instance.pk:
+            top = Category.objects.filter(workspace=self.workspace).aggregate(m=Max("sort_order"))["m"] or 0
+            self.instance.sort_order = top + 1
+        return super().save(commit)

@@ -39,4 +39,7 @@ urlpatterns = [
         views.ThrottledPasswordResetView.as_view(template_name="accounts/password_reset_complete.html"),
         name="password_reset_complete",
     ),
+    path("settings/", views.settings_home, name="settings"),
+    path("settings/profile/", views.profile, name="profile"),
+    path("settings/password/", views.PasswordChange.as_view(), name="password_change"),
 ]

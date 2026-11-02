@@ -285,3 +285,43 @@ class InvoiceForm(StyledFormMixin, forms.ModelForm):
         if data.get("issue_date") and data.get("due_date") and data["due_date"] < data["issue_date"]:
             self.add_error("due_date", "The due date cannot be before the issue date.")
         return data
+    
+class TruckForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = Truck
+        fields = ["name", "plate", "is_active"]
+        labels = {"name": "Truck name", "plate": "Plate (optional)", "is_active": "In service"}
+
+    def __init__(self, *args, workspace, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.workspace = workspace
+        self.instance.workspace = workspace
+        if not self.instance.pk:
+            del self.fields["is_active"]
+
+    def clean_is_active(self):
+        active = self.cleaned_data["is_active"]
+        if not active and not Truck.objects.filter(workspace=self.workspace, is_active=True).exclude(pk=self.instance.pk).exists():
+            raise ValidationError("Keep at least one truck in service.")
+        return active
+
+
+class PartyForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = Party
+        fields = ["name", "terms_days"]
+        labels = {"terms_days": "Usual payment terms (days)"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.kind == Party.Kind.FACTOR:
+            del self.fields["terms_days"]
+        else:
+            self.fields["terms_days"].help_text = "New invoices for this broker are due this many days after the job."
+
+    def clean_name(self):
+        name = " ".join(self.cleaned_data["name"].split())
+        clash = Party.objects.filter(workspace=self.instance.workspace, kind=self.instance.kind, name__iexact=name).exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise ValidationError("A saved name like this already exists.")
+        return name

@@ -1,0 +1,24 @@
+{# templates/work/truck_list.html #}
+{% extends "base.html" %}
+{% block title %}Trucks{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-5">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div><h1 class="text-2xl font-semibold tracking-tight">Trucks</h1><p class="text-sm text-muted">Add a second truck and job and fuel forms start asking which one.</p></div>
+    <a href="{% url 'work:truck_create' %}" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-plus"></i>Add truck</a>
+  </div>
+  <ul role="list" class="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
+    {% for t in trucks %}
+      <li>
+        <a href="{% url 'work:truck_edit' t.pk %}" class="flex items-center gap-3 px-4 py-3 hover:bg-line/50 {% if not t.is_active %}opacity-60{% endif %}">
+          <span class="grid size-11 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-truck"></i></span>
+          <span class="min-w-0 flex-1"><span class="block truncate font-medium">{{ t.name }}{% if t.plate %} <span class="font-normal text-muted">· {{ t.plate }}</span>{% endif %}</span>
+            <span class="block text-xs text-muted">{{ t.job_count }} job{{ t.job_count|pluralize }} · {{ t.fuel_count }} fill-up{{ t.fuel_count|pluralize }}{% if not t.is_active %} · out of service{% endif %}</span></span>
+          <i class="fa-solid fa-chevron-right text-xs text-muted"></i>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
