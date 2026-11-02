@@ -27,6 +27,8 @@ INK, MUTED, LINE, TINT = colors.HexColor("#121b16"), colors.HexColor("#5f6b65"),
 def fmt(value, kind, symbol="$"):
     if value is None or value == "":
         return ""
+    if isinstance(value, str):      # labels like "Total" in a date or money column
+        return value
     if kind == "date":
         return value.strftime("%b %d, %Y")
     if kind in RIGHT:
@@ -214,6 +216,8 @@ def render_pdf(report, brand, logo_bytes=None):
 def _raw(value, kind):
     if value is None or value == "":
         return ""
+    if isinstance(value, str):
+        return value
     if kind == "date":
         return value.isoformat()
     if kind == "money":
@@ -250,6 +254,8 @@ XL_FORMATS = {"money": '#,##0.00;[Red]-#,##0.00', "price": "#,##0.000", "qty": "
 def _xl(value, kind):
     if value is None or value == "":
         return None
+    if isinstance(value, str):
+        return value
     return value if kind in ("date", "text") else float(value)
 
 
