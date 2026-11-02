@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}New report{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-5">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">New report</h1>
+      <p class="text-sm text-muted">Pick a report and a period. Create a PDF to keep and share, or export the numbers.</p>
+    </div>
+    <a href="{% url 'reports:branding' %}" class="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-medium text-accent hover:bg-accent/10"><i class="fa-solid fa-palette"></i>Report branding</a>
+  </div>
+
+  <form method="post" action="{% url 'reports:create' %}" class="space-y-5">
+    {% csrf_token %}
+    {% if form.errors %}<div role="alert" class="rounded-lg bg-negative/10 px-3.5 py-2.5 text-sm text-negative">{% for field in form %}{% for e in field.errors %}{{ e }} {% endfor %}{% endfor %}{{ form.non_field_errors }}</div>{% endif %}
+
+    <fieldset class="space-y-2">
+      <legend class="mb-1 text-sm font-medium">Report</legend>
+      <div class="grid gap-3 sm:grid-cols-2">
+        {% for key, icon, title, hint in kinds %}
+          <label class="flex min-h-20 cursor-pointer items-center gap-3 rounded-card border border-line bg-surface p-4 shadow-card has-[:checked]:border-accent has-[:checked]:bg-accent/5">
+            <input type="radio" name="kind" value="{{ key }}" class="sr-only" {% if form.kind.value == key %}checked{% endif %}>
+            <span class="grid size-11 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid {{ icon }}"></i></span>
+            <span class="min-w-0"><span class="block font-semibold">{{ title }}</span><span class="block text-xs text-muted">{{ hint }}</span></span>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <section class="space-y-4 rounded-card border border-line bg-surface p-5 shadow-card">
+      <div>
+        <p class="mb-2 text-sm font-medium">Period</p>
+        <div class="-mx-1 flex flex-wrap gap-2" id="quick-ranges">
+          <button type="button" data-range="month" class="min-h-9 rounded-full border border-line px-3 text-sm hover:border-accent">This month</button>
+          <button type="button" data-range="lastmonth" class="min-h-9 rounded-full border border-line px-3 text-sm hover:border-accent">Last month</button>
+          <button type="button" data-range="quarter" class="min-h-9 rounded-full border border-line px-3 text-sm hover:border-accent">This quarter</button>
+          <button type="button" data-range="lastquarter" class="min-h-9 rounded-full border border-line px-3 text-sm hover:border-accent">Last quarter</button>
+          <button type="button" data-range="year" class="min-h-9 rounded-full border border-line px-3 text-sm hover:border-accent">Year to date</button>
+          <button type="button" data-range="lastyear" class="min-h-9 rounded-full border border-line px-3 text-sm hover:border-accent">Last year</button>
+        </div>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include "accounts/_field.html" with field=form.date_from %}
+        {% include "accounts/_field.html" with field=form.date_to %}
+      </div>
+      <div id="scope-row">{% include "accounts/_field.html" with field=form.scope %}</div>
+      <label id="detail-row" class="flex min-h-11 items-center gap-3 text-sm">
+        <input type="checkbox" name="detail" id="id_detail" class="size-4" {% if form.detail.value %}checked{% endif %}>
+        <span id="detail-label">Include every entry</span>
+      </label>
+    </section>
+
+    <div class="flex flex-wrap gap-3">
+      <button class="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-file-pdf"></i>Create PDF</button>
+      <button formaction="{% url 'reports:export' %}" name="fmt" value="xlsx" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line"><i class="fa-solid fa-file-excel"></i>Excel</button>
+      <button formaction="{% url 'reports:export' %}" name="fmt" value="csv" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line"><i class="fa-solid fa-file-csv"></i>CSV</button>
+    </div>
+    <p class="text-xs text-muted">The PDF is saved in your report history. Excel and CSV download straight away.</p>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const from = document.getElementById("id_date_from"), to = document.getElementById("id_date_to");
+  const iso = (d) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
+  const ranges = {
+    month: (t) => [new Date(t.getFullYear(), t.getMonth(), 1), t],
+    lastmonth: (t) => [new Date(t.getFullYear(), t.getMonth() - 1, 1), new Date(t.getFullYear(), t.getMonth(), 0)],
+    quarter: (t) => { const q = Math.floor(t.getMonth() / 3) * 3; return [new Date(t.getFullYear(), q, 1), t]; },
+    lastquarter: (t) => { const q = Math.floor(t.getMonth() / 3) * 3 - 3; return [new Date(t.getFullYear(), q, 1), new Date(t.getFullYear(), q + 3, 0)]; },
+    year: (t) => [new Date(t.getFullYear(), 0, 1), t],
+    lastyear: (t) => [new Date(t.getFullYear() - 1, 0, 1), new Date(t.getFullYear() - 1, 11, 31)],
+  };
+  document.querySelectorAll("[data-range]").forEach((b) => b.addEventListener("click", () => {
+    const [a, z] = ranges[b.dataset.range](new Date());
+    from.value = iso(a); to.value = iso(z);
+  }));
+
+  const labels = { statement: "Include every entry", fuel: "Include every fill-up" };
+  const sync = () => {
+    const kind = document.querySelector("input[name=kind]:checked").value;
+    document.getElementById("scope-row").classList.toggle("hidden", kind !== "statement");
+    document.getElementById("detail-row").classList.toggle("hidden", !(kind in labels));
+    document.getElementById("detail-label").textContent = labels[kind] || "";
+  };
+  document.querySelectorAll("input[name=kind]").forEach((r) => r.addEventListener("change", sync));
+  sync();
+})();
+</script>
+{% endblock %}

@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "django_filters",
-    "apps.accounts", "apps.core", "apps.work", "apps.planning",
+    "apps.accounts", "apps.core", "apps.work", "apps.planning", "apps.reports",
     "django_tailwind_cli",
     "axes",
 ]

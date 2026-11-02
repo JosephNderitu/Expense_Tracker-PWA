@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-5">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Reports</h1>
+      <p class="text-sm text-muted">Every PDF you create is kept here.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'reports:branding' %}" class="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-medium text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-palette"></i><span class="hidden sm:inline">Branding</span></a>
+      <a href="{% url 'reports:builder' %}" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-plus"></i>New report</a>
+    </div>
+  </div>
+
+  <section class="rounded-card border border-line bg-surface p-2 shadow-card sm:p-3">
+    {% if runs %}
+      <ul role="list" class="divide-y divide-line">
+        {% for r in runs %}
+          <li>
+            <a href="{% url 'reports:detail' r.pk %}" class="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-line/50">
+              <span class="grid size-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-file-pdf"></i></span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium">{{ r.title }}</span>
+                <span class="block truncate text-xs text-muted">{{ r.date_from|date:"M j, Y" }} to {{ r.date_to|date:"M j, Y" }}</span>
+              </span>
+              <span class="shrink-0 text-right text-xs text-muted"><span class="block">{{ r.created_at|date:"M j" }}</span><span class="block">{{ r.size|filesizeformat }}</span></span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="p-10 text-center">
+        <span class="mx-auto grid size-14 place-items-center rounded-full bg-accent/10 text-accent"><i class="fa-solid fa-file-pdf text-xl"></i></span>
+        <h2 class="mt-4 text-lg font-semibold">No reports yet</h2>
+        <p class="mx-auto mt-1 max-w-sm text-sm text-muted">Create a statement for your accountant, a fuel summary for the quarter, or an invoice report for your factoring company.</p>
+        <a href="{% url 'reports:builder' %}" class="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-plus"></i>Create your first report</a>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

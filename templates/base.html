@@ -71,6 +71,10 @@
            class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if name == 'budget_edit' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
           <i class="fa-solid fa-bullseye w-5 text-center"></i>Budgets
         </a>
+                <a href="{% url 'reports:history' %}" {% if app == 'reports' %}aria-current="page"{% endif %}
+           class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if app == 'reports' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
+          <i class="fa-solid fa-file-pdf w-5 text-center"></i>Reports
+        </a>
       </div>
     </nav>
 
@@ -127,6 +131,7 @@
           {% endif %}
           <a href="{% url 'planning:bill_list' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-file-invoice w-5 text-center"></i><span>Bills</span>{% if bills_due_count %}<span class="ml-auto rounded-full bg-negative px-2 py-0.5 text-xs font-medium text-white">{{ bills_due_count }}</span>{% endif %}</a>
           <a href="{% url 'planning:budget_edit' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-bullseye w-5 text-center"></i><span>Budgets</span></a>
+                    <a href="{% url 'reports:history' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-file-pdf w-5 text-center"></i><span>Reports</span></a>
           <div class="my-1 border-t border-line"></div>
           {% include "partials/_prefs.html" %}
         </div>

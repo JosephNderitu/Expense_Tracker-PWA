@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{{ run.title }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-6">
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="text-xl font-semibold tracking-tight">{{ run.title }}</h1>
+        <p class="text-sm text-muted">{{ scope_label }} · {{ run.date_from|date:"M j, Y" }} to {{ run.date_to|date:"M j, Y" }}</p>
+        <p class="mt-1 text-xs text-muted">Created {{ run.created_at|date:"M j, Y g:i A" }} · {{ run.size|filesizeformat }}</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="{% url 'reports:file' run.pk %}?download=1" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-download"></i>PDF</a>
+        <a href="{% url 'reports:run_export' run.pk 'xlsx' %}" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line"><i class="fa-solid fa-file-excel"></i>Excel</a>
+        <a href="{% url 'reports:run_export' run.pk 'csv' %}" class="inline-flex min-h-10 items-center gap-2 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line"><i class="fa-solid fa-file-csv"></i>CSV</a>
+      </div>
+    </div>
+    <p class="mt-3 text-xs text-muted">The PDF is a snapshot from when it was created. Excel and CSV are rebuilt from today's data with the same settings.</p>
+  </section>
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card" aria-labelledby="share-title">
+    {% csrf_token %}
+    <h2 id="share-title" class="text-sm font-semibold uppercase tracking-wider text-muted">Share</h2>
+    <p class="mt-1 text-sm text-muted">Send the PDF with your phone's share sheet (WhatsApp included), or send an expiring link.</p>
+    <div class="mt-4 flex flex-wrap items-center gap-2">
+      <button id="share-native" type="button" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-share-nodes"></i>Share PDF</button>
+      <button id="share-wa" type="button" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line"><i class="fa-brands fa-whatsapp"></i>WhatsApp link</button>
+      <button id="share-copy" type="button" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line"><i class="fa-regular fa-copy"></i>Copy link</button>
+      <label class="ml-auto flex items-center gap-2 text-sm text-muted">Link works for
+        <select id="share-days" class="min-h-11 rounded-lg border border-line bg-surface px-3 text-sm text-ink">
+          <option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option>
+        </select>
+      </label>
+    </div>
+    <p id="share-status" role="status" class="mt-3 hidden text-sm"></p>
+
+    {% if links %}
+      <div class="mt-5 border-t border-line pt-4">
+        <p class="text-sm font-medium">Active links</p>
+        <ul role="list" class="mt-2 divide-y divide-line">
+          {% for l in links %}
+            <li class="flex items-center gap-3 py-2.5 text-sm">
+              <span class="min-w-0 flex-1"><span class="block">Until {{ l.expires_at|date:"M j, Y" }}</span><span class="block text-xs text-muted">Opened {{ l.views }} time{{ l.views|pluralize }}</span></span>
+              <form method="post" action="{% url 'reports:share_revoke' l.pk %}">{% csrf_token %}<button class="min-h-9 rounded-lg px-3 font-medium text-negative hover:bg-negative/10">Revoke</button></form>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="hidden rounded-card border border-line bg-surface p-3 shadow-card md:block" aria-label="Preview">
+    <iframe src="{% url 'reports:file' run.pk %}" title="Preview of {{ run.title }}" class="h-[75vh] w-full rounded-xl"></iframe>
+  </section>
+  <a href="{% url 'reports:file' run.pk %}" class="grid min-h-12 place-items-center rounded-card border border-line bg-surface text-sm font-medium shadow-card md:hidden"><i class="fa-solid fa-up-right-from-square mr-2"></i>Open the PDF</a>
+
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <a href="{% url 'reports:builder' %}?kind={{ run.kind }}&scope={{ run.scope }}&date_from={{ run.date_from|date:'Y-m-d' }}&date_to={{ run.date_to|date:'Y-m-d' }}" class="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-accent hover:bg-accent/10"><i class="fa-solid fa-rotate"></i>Run again with these settings</a>
+    <form method="post" action="{% url 'reports:delete' run.pk %}" onsubmit="return confirm('Delete this report and its share links?')">
+      {% csrf_token %}
+      <button class="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-negative hover:bg-negative/10"><i class="fa-solid fa-trash"></i>Delete report</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const token = document.querySelector("[name=csrfmiddlewaretoken]").value;
+  const fileUrl = "{% url 'reports:file' run.pk %}", fileName = "{{ file_name }}", title = "{{ run.title|escapejs }}";
+  const status = document.getElementById("share-status");
+  const say = (text, bad) => { status.textContent = text; status.className = "mt-3 text-sm " + (bad ? "text-negative" : "text-muted"); };
+
+  async function makeLink() {
+    const body = new FormData();
+    body.append("days", document.getElementById("share-days").value);
+    const res = await fetch("{% url 'reports:share_create' run.pk %}", { method: "POST", headers: { "X-CSRFToken": token }, body });
+    if (!res.ok) throw new Error("Could not create the link");
+    return res.json();
+  }
+
+  document.getElementById("share-wa").addEventListener("click", async () => {
+    const win = window.open("", "_blank");        // opened now, while the click still counts, then pointed at WhatsApp
+    try {
+      const data = await makeLink();
+      if (win) win.location = data.whatsapp;
+      say("Link created. It works until " + data.expires + ". Reload this page to see it in the list.");
+    } catch (e) { if (win) win.close(); say("Could not create the link. Try again.", true); }
+  });
+
+  document.getElementById("share-copy").addEventListener("click", async () => {
+    try {
+      const data = await makeLink();
+      await navigator.clipboard.writeText(data.url);
+      say("Link copied. It works until " + data.expires + ".");
+    } catch (e) { say("Could not copy the link.", true); }
+  });
+
+  document.getElementById("share-native").addEventListener("click", async () => {
+    try {
+      const res = await fetch(fileUrl, { credentials: "same-origin" });
+      const file = new File([await res.blob()], fileName, { type: "application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title });
+        return;
+      }
+      say("This browser cannot share files directly. Use WhatsApp link or Copy link instead.");
+    } catch (e) { if (e.name !== "AbortError") say("Sharing did not work here. Use WhatsApp link instead.", true); }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Report branding{% endblock %}
+
+{% block content %}
+<div class="mx-auto grid max-w-5xl gap-6 lg:grid-cols-2">
+  <div class="space-y-4">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Report branding</h1>
+      <p class="text-sm text-muted">Appears at the top and bottom of every PDF.</p>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="space-y-4 rounded-card border border-line bg-surface p-6 shadow-card">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="rounded-lg bg-negative/10 px-3.5 py-2.5 text-sm text-negative">{{ form.non_field_errors.0 }}</div>{% endif %}
+      {% include "accounts/_field.html" with field=form.business_name %}
+      {% include "accounts/_field.html" with field=form.address %}
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include "accounts/_field.html" with field=form.phone %}
+        {% include "accounts/_field.html" with field=form.email %}
+      </div>
+      {% include "accounts/_field.html" with field=form.footer_text %}
+      {% include "accounts/_field.html" with field=form.accent_color %}
+      <div class="space-y-2">
+        {% include "accounts/_field.html" with field=form.logo %}
+        <p class="text-xs text-muted">PNG, JPG or WEBP. It is resized to fit and kept private.</p>
+        {% if brand.logo %}<label class="flex items-center gap-3 text-sm"><input type="checkbox" name="remove_logo" class="size-4">{{ form.remove_logo.label }}</label>{% endif %}
+      </div>
+      <div class="flex gap-3">
+        <button class="min-h-11 flex-1 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90">Save branding</button>
+        <a href="{% url 'reports:history' %}" class="grid min-h-11 flex-1 place-items-center rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Back to reports</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="lg:sticky lg:top-24 lg:self-start">
+    <p class="mb-2 text-sm font-medium text-muted">Letterhead preview</p>
+    <div class="rounded-card border border-line bg-white p-6 text-slate-900 shadow-card">
+      <div class="flex items-center gap-3 pb-3" id="pv-head">
+        <img id="pv-logo" alt="" class="{% if not brand.logo %}hidden {% endif %}h-12 w-auto max-w-32 object-contain" {% if brand.logo %}src="{% url 'reports:logo' %}"{% endif %}>
+        <div class="min-w-0">
+          <p id="pv-name" class="truncate text-base font-bold">{{ brand.business_name|default:"Your business name" }}</p>
+          <p id="pv-address" class="whitespace-pre-line text-xs text-slate-500">{{ brand.address|default:"Street, city, state, ZIP" }}</p>
+          <p id="pv-contact" class="text-xs text-slate-500">{{ brand.phone }}{% if brand.phone and brand.email %} · {% endif %}{{ brand.email }}</p>
+        </div>
+      </div>
+      <div id="pv-line" class="h-0.5" style="background: {{ brand.accent_color }}"></div>
+      <p class="mt-5 text-xl font-bold">Income and expense statement</p>
+      <p class="text-sm text-slate-500">Household and work · Jan 01, 2026 to Mar 31, 2026</p>
+      <div class="mt-4 h-8 rounded" id="pv-bar" style="background: {{ brand.accent_color }}"></div>
+      <div class="mt-2 space-y-1.5"><div class="h-3 rounded bg-slate-100"></div><div class="h-3 rounded bg-slate-50"></div><div class="h-3 rounded bg-slate-100"></div></div>
+      <div class="mt-6 border-t border-slate-200 pt-2 text-xs text-slate-500"><span id="pv-footer">{{ brand.footer_text }}</span></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const bind = (inputId, fn) => { const el = $(inputId); if (el) el.addEventListener("input", fn); };
+  bind("id_business_name", (e) => { $("pv-name").textContent = e.target.value || "Your business name"; });
+  bind("id_address", (e) => { $("pv-address").textContent = e.target.value || "Street, city, state, ZIP"; });
+  const contact = () => { $("pv-contact").textContent = [$("id_phone").value, $("id_email").value].filter(Boolean).join(" · "); };
+  bind("id_phone", contact); bind("id_email", contact);
+  bind("id_footer_text", (e) => { $("pv-footer").textContent = e.target.value; });
+  bind("id_accent_color", (e) => { $("pv-line").style.background = e.target.value; $("pv-bar").style.background = e.target.value; });
+  const file = $("id_logo");
+  if (file) file.addEventListener("change", () => {
+    const f = file.files[0];
+    if (!f) return;
+    $("pv-logo").src = URL.createObjectURL(f);
+    $("pv-logo").classList.remove("hidden");
+  });
+})();
+</script>
+{% endblock %}
