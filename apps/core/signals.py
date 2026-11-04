@@ -15,5 +15,5 @@ def delete_attachment_file(sender, instance, **kwargs):
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_workspaces_for_new_user(sender, instance, created, **kwargs):
-    if created:
+    if created and not kwargs.get("raw"):
         ensure_workspaces(instance)
