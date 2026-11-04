@@ -1,10 +1,17 @@
-{% load tailwind_cli %}
+{% load static tailwind_cli %}
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}Overview{% endblock %} · Expense Tracker</title>
+  <meta name="theme-color" content="#166534">
+  <link rel="manifest" href="{% url 'pwa:manifest' %}">
+  <link rel="icon" href="{% static 'icons/icon-192.png' %}" type="image/png">
+  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Expenses">
   <script>
     (() => { try {
       const t = localStorage.getItem("theme");
@@ -13,13 +20,10 @@
     } catch (e) {} })();
   </script>
   {% tailwind_css %}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-full bg-canvas text-ink antialiased" data-scope="{{ scope }}">
+<body class="min-h-full bg-canvas text-ink antialiased" data-scope="{{ scope }}" data-auth="{% if user.is_authenticated %}1{% else %}0{% endif %}">
   <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2">Skip to content</a>
 
   {% with name=request.resolver_match.url_name app=request.resolver_match.app_name %}
@@ -71,7 +75,7 @@
            class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if name == 'budget_edit' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
           <i class="fa-solid fa-bullseye w-5 text-center"></i>Budgets
         </a>
-            <a href="{% url 'reports:history' %}" {% if app == 'reports' %}aria-current="page"{% endif %}
+        <a href="{% url 'reports:history' %}" {% if app == 'reports' %}aria-current="page"{% endif %}
            class="flex min-h-11 items-center gap-3 rounded-xl px-3 {% if app == 'reports' %}bg-accent/10 font-medium text-accent{% else %}text-muted hover:bg-line/50 hover:text-ink{% endif %}">
           <i class="fa-solid fa-file-pdf w-5 text-center"></i>Reports
         </a>
@@ -95,6 +99,11 @@
         </a>
         {% include "partials/_scope_switch.html" %}
         <div class="flex items-center gap-1">
+          <div id="sync-chip" class="hidden">
+            <a href="{% url 'pwa:offline' %}" class="inline-flex min-h-10 items-center gap-2 rounded-full bg-amber-500/15 px-3 text-sm font-medium text-amber-600" title="Entries waiting to be sent">
+              <i class="fa-solid fa-cloud-arrow-up"></i><span id="sync-count"></span><span class="hidden sm:inline">waiting</span>
+            </a>
+          </div>
           <a href="{% url 'notifications:inbox' %}" class="relative grid size-11 place-items-center rounded-full text-muted hover:bg-line/50 hover:text-ink" aria-label="Notifications{% if unread_count %}, {{ unread_count }} unread{% endif %}">
             <i class="fa-regular fa-bell text-lg"></i>
             {% if unread_count %}<span class="absolute right-1 top-1 grid min-w-5 place-items-center rounded-full bg-negative px-1 text-[0.65rem] font-semibold leading-5 text-white">{{ unread_count }}</span>{% endif %}
@@ -108,6 +117,14 @@
     </header>
 
     <main id="main" class="mx-auto max-w-6xl px-4 pb-28 pt-6 lg:pb-10">
+      <div data-install-banner class="hidden">
+        <div class="mb-4 flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-sm shadow-sm">
+          <i class="fa-solid fa-mobile-screen text-accent"></i>
+          <span class="flex-1">Install Expense Tracker for one-tap access and offline entry.</span>
+          <button data-install-button type="button" class="min-h-9 rounded-lg bg-accent px-3 font-medium text-on-accent">Install</button>
+          <button id="install-dismiss" type="button" class="min-h-9 rounded-lg px-2 text-muted hover:text-ink" aria-label="Not now"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
       {% if crumbs %}{% include "partials/_breadcrumbs.html" %}{% endif %}
       {% for message in messages %}
         <div role="status" class="mb-4 flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-sm shadow-sm">
@@ -116,6 +133,13 @@
       {% endfor %}
       {% block content %}{% endblock %}
     </main>
+  </div>
+
+  <div id="update-banner" class="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto hidden max-w-md lg:bottom-6">
+    <div class="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-sm shadow-card">
+      <i class="fa-solid fa-circle-arrow-up text-accent"></i><span class="flex-1">A new version is ready.</span>
+      <button id="update-now" type="button" class="min-h-9 rounded-lg bg-accent px-3 font-medium text-on-accent">Update</button>
+    </div>
   </div>
 
   <a href="{% url 'core:transaction_create' %}" aria-label="Add entry"
@@ -143,7 +167,7 @@
           {% endif %}
           <a href="{% url 'planning:bill_list' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-file-invoice w-5 text-center"></i><span>Bills</span>{% if bills_due_count %}<span class="ml-auto rounded-full bg-negative px-2 py-0.5 text-xs font-medium text-white">{{ bills_due_count }}</span>{% endif %}</a>
           <a href="{% url 'planning:budget_edit' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-bullseye w-5 text-center"></i><span>Budgets</span></a>
-                <a href="{% url 'reports:history' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-file-pdf w-5 text-center"></i><span>Reports</span></a>
+          <a href="{% url 'reports:history' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-file-pdf w-5 text-center"></i><span>Reports</span></a>
           <a href="{% url 'accounts:settings' %}" class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-muted hover:bg-line/50 hover:text-ink"><i class="fa-solid fa-gear w-5 text-center"></i><span>Settings</span></a>
           <div class="my-1 border-t border-line"></div>
           {% include "partials/_prefs.html" %}
@@ -177,6 +201,8 @@
     });
   })();
   </script>
+  <script src="{% static 'js/offline-db.js' %}" defer></script>
+  <script src="{% static 'js/pwa.js' %}" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

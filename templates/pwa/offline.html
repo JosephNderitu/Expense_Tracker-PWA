@@ -1,0 +1,55 @@
+{% load static tailwind_cli %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Offline entry · Expense Tracker</title>
+  <meta name="theme-color" content="#166534">
+  <link rel="manifest" href="{% url 'pwa:manifest' %}">
+  <script>
+    (() => { try {
+      const t = localStorage.getItem("theme");
+      if (t === "dark" || (!t && matchMedia("(prefers-color-scheme: dark)").matches)) document.documentElement.classList.add("dark");
+    } catch (e) {} })();
+  </script>
+  {% tailwind_css %}
+  <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+</head>
+<body class="min-h-full bg-canvas text-ink antialiased" data-auth="1" data-scope="all">
+  <header class="border-b border-line bg-surface">
+    <div class="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <span class="flex items-center gap-3 font-semibold"><span class="grid size-10 place-items-center rounded-xl bg-accent text-on-accent"><i class="fa-solid fa-wallet"></i></span>Offline entry</span>
+      <a href="/" class="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-medium text-accent hover:bg-accent/10"><i class="fa-solid fa-house"></i>Open the app</a>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-lg space-y-5 px-4 py-6">
+    <div id="status-banner" class="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-muted"><i id="status-icon" class="fa-solid fa-wifi"></i><span id="status-text"></span></div>
+
+    <div id="missing" class="hidden rounded-card border border-dashed border-line bg-surface p-6 text-center shadow-card">
+      <p class="font-semibold">Open the app online once first</p>
+      <p class="mt-1 text-sm text-muted">It needs to learn your categories and trucks before it can take entries offline. Sign in, then come back.</p>
+    </div>
+
+    <section id="builder" class="hidden space-y-4" aria-label="New offline entry">
+      <div id="type-tabs" class="flex gap-1 rounded-full border border-line bg-surface p-1 shadow-sm" role="group" aria-label="What to record"></div>
+      <div id="workspace-tabs" class="flex gap-1 rounded-full bg-line/60 p-1" role="group" aria-label="Household or work"></div>
+      <form id="entry-form" class="space-y-4 rounded-card border border-line bg-surface p-5 shadow-card" novalidate></form>
+    </section>
+
+    <section aria-labelledby="queue-title">
+      <div class="flex items-center justify-between">
+        <h2 id="queue-title" class="text-sm font-semibold uppercase tracking-wider text-muted">Waiting to send</h2>
+        <button id="sync-now" type="button" class="hidden min-h-10 items-center gap-2 rounded-lg bg-line/60 px-3 text-sm font-medium hover:bg-line"><i class="fa-solid fa-rotate"></i> Send now</button>
+      </div>
+      <p id="queue-empty" class="mt-2 rounded-card border border-line bg-surface px-4 py-6 text-center text-sm text-muted shadow-card">Nothing waiting. Everything you saved has been sent.</p>
+      <ul id="queue-list" role="list" class="mt-2 divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card empty:hidden"></ul>
+    </section>
+  </main>
+
+  <script src="{% static 'js/offline-db.js' %}" defer></script>
+  <script src="{% static 'js/pwa.js' %}" defer></script>
+  <script src="{% static 'js/offline-entry.js' %}" defer></script>
+</body>
+</html>

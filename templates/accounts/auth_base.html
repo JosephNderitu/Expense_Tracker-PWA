@@ -1,5 +1,5 @@
 {# templates/accounts/auth_base.html #}
-{% load tailwind_cli %}
+{% load static tailwind_cli %}
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-50">
 <head>
@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Expense Tracker{% endblock %}</title>
   {% tailwind_css %}
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
 </head>
 <body class="flex min-h-full items-center justify-center px-4 py-12 text-slate-800">
   <div class="w-full max-w-sm">

@@ -9,3 +9,4 @@ __pycache__/
 assets/
 .django_tailwind_cli/
 private_media/
+vapid_private.pem

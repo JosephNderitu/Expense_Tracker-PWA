@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "django_filters",
-    "apps.accounts", "apps.core", "apps.work", "apps.planning", "apps.reports", "apps.notifications",
+    "apps.accounts", "apps.core", "apps.work", "apps.planning", "apps.reports", "apps.notifications","apps.pwa",
     "django_tailwind_cli",
     "axes",
 ]
@@ -165,3 +165,7 @@ AXES_COOLOFF_TIME = timedelta(minutes=30)
 AXES_RESET_ON_SUCCESS = True
 AXES_LOCKOUT_PARAMETERS = [["ip_address", "username"]]
 AXES_LOCKOUT_TEMPLATE = "accounts/locked.html"
+
+VAPID_PUBLIC_KEY = config("VAPID_PUBLIC_KEY", default="")
+VAPID_PRIVATE_KEY_PATH = BASE_DIR / config("VAPID_PRIVATE_KEY_FILE", default="vapid_private.pem")
+VAPID_SUBJECT = config("VAPID_SUBJECT", default="mailto:gikurujoseph53@gmail.com")   # use your real email

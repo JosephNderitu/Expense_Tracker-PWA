@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg space-y-5">
+  <div>
+    <h1 class="text-xl font-semibold tracking-tight">Notifications</h1>
+    <p class="mt-1 text-sm text-muted">Choose what reaches your inbox and your phone.</p>
+  </div>
+
+  <section class="rounded-card border border-line bg-surface p-5 shadow-card" aria-labelledby="device-title">
+    <h2 id="device-title" class="font-semibold">Alerts on this device</h2>
+    {% if not push_ready %}
+      <p class="mt-1 text-sm text-muted">Phone alerts are not set up on the server yet. Run <code class="rounded bg-line px-1">python manage.py generate_vapid</code>, add the two lines it prints to your <code class="rounded bg-line px-1">.env</code> file and restart.</p>
+    {% else %}
+      <p id="push-state" class="mt-1 text-sm text-muted">Checking this device…</p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button id="push-enable" type="button" class="hidden min-h-11 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-bell"></i> Turn on alerts</button>
+        <button id="push-test" type="button" class="hidden min-h-11 items-center gap-2 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line"><i class="fa-solid fa-paper-plane"></i> Send a test</button>
+        <button id="push-disable" type="button" class="hidden min-h-11 items-center gap-2 rounded-lg px-4 text-sm font-medium text-negative hover:bg-negative/10">Turn off</button>
+      </div>
+      <p data-ios-hint class="mt-3 hidden text-sm text-muted">On iPhone, add the app to your home screen first (Share, then Add to Home Screen), then open it from there and turn alerts on.</p>
+    {% endif %}
+  </section>
+
+  <form method="post" class="space-y-4 rounded-card border border-line bg-surface p-6 shadow-card">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-lg bg-negative/10 px-3.5 py-2.5 text-sm text-negative">{{ form.non_field_errors.0 }}</div>{% endif %}
+    <p class="text-sm font-medium">What to tell me about</p>
+    {% for field in form %}
+      {% if field.widget_type == "checkbox" %}
+        <label class="flex items-start gap-3 text-sm">{{ field }}<span>{{ field.label }}</span></label>
+      {% endif %}
+    {% endfor %}
+    <div class="grid gap-4 sm:grid-cols-3">
+      {% include "accounts/_field.html" with field=form.reminder_time %}
+      {% include "accounts/_field.html" with field=form.quiet_start %}
+      {% include "accounts/_field.html" with field=form.quiet_end %}
+    </div>
+    <p class="text-xs text-muted">Times use your time zone. Phone alerts wait until quiet hours end. They are never lost, only delayed.</p>
+    <div class="flex gap-3">
+      <button class="min-h-11 flex-1 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90">Save</button>
+      <a href="{% url 'accounts:settings' %}" class="grid min-h-11 flex-1 place-items-center rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if push_ready %}
+<script>
+(() => {
+  const PUBLIC = "{{ vapid_public_key }}";
+  const $ = (id) => document.getElementById(id);
+  const csrf = () => (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || "";
+  const post = (url, body) => fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() }, body: JSON.stringify(body || {}) });
+  const key = (s) => { const p = "=".repeat((4 - s.length % 4) % 4); const raw = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...raw].map((c) => c.charCodeAt(0))); };
+  const state = $("push-state");
+  const buttons = { enable: $("push-enable"), test: $("push-test"), disable: $("push-disable") };
+  const set = (text, on) => { state.textContent = text; Object.entries(buttons).forEach(([k, b]) => b.classList.toggle("hidden", !on.includes(k))); [...Object.values(buttons)].forEach((b) => b.classList.toggle("inline-flex", !b.classList.contains("hidden"))); };
+
+  async function check() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      return set("This browser cannot receive alerts here. On iPhone, install the app to your home screen first.", []);
+    }
+    if (Notification.permission === "denied") return set("Alerts are blocked for this site. Allow notifications in your browser settings, then reload.", []);
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    set(sub ? "Alerts are on for this device." : "Alerts are off for this device.", sub ? ["test", "disable"] : ["enable"]);
+  }
+
+  buttons.enable.addEventListener("click", async () => {
+    try {
+      if (await Notification.requestPermission() !== "granted") return set("Permission was not given, so alerts stay off.", ["enable"]);
+      const reg = await navigator.serviceWorker.ready;
+      const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key(PUBLIC) });
+      const res = await post("{% url 'notifications:push_subscribe' %}", sub.toJSON());
+      if (!res.ok) throw new Error("save failed");
+      await check();
+    } catch (e) { set("Could not turn alerts on. Try again.", ["enable"]); }
+  });
+  buttons.disable.addEventListener("click", async () => {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) { await post("{% url 'notifications:push_unsubscribe' %}", { endpoint: sub.endpoint }); await sub.unsubscribe(); }
+    await check();
+  });
+  buttons.test.addEventListener("click", async () => {
+    const res = await post("{% url 'notifications:push_test' %}");
+    const data = await res.json().catch(() => ({}));
+    window.PWA && window.PWA.toast(data.sent ? "Test sent. It should arrive in a moment." : "Nothing was sent. Turn alerts off and on again.");
+  });
+  check();
+})();
+</script>
+{% endif %}
+{% endblock %}

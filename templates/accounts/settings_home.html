@@ -20,5 +20,13 @@
       </ul>
     </section>
   {% endfor %}
+  <section data-not-installed class="rounded-card border border-line bg-surface p-5 shadow-card" aria-labelledby="install-title">
+    <h2 id="install-title" class="font-semibold">Install the app</h2>
+    <p class="mt-1 text-sm text-muted">Open it from your home screen like any app. Quick entries work even without a connection.</p>
+    <div data-install class="mt-3 hidden"><button data-install-button type="button" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90"><i class="fa-solid fa-download"></i>Install</button></div>
+    <p data-ios-hint class="mt-3 hidden text-sm text-muted">On iPhone: tap the Share button, then Add to Home Screen.</p>
+    <p class="mt-3 text-sm text-muted">No install button? Use your browser's menu and choose Install app or Add to Home screen.</p>
+    <a href="{% url 'pwa:offline' %}" class="mt-3 inline-flex min-h-10 items-center gap-2 text-sm font-medium text-accent hover:underline"><i class="fa-solid fa-plane"></i>Open the offline entry screen</a>
+  </section>
 </div>
 {% endblock %}

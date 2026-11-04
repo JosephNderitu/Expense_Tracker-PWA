@@ -13,6 +13,16 @@ from apps.core.nav import crumbs
 from .forms import PrefsForm
 from .models import Notification
 from .services import get_prefs, sync_alerts
+import json
+
+from django.conf import settings
+from django.http import JsonResponse
+
+from apps.core.api import api_login_required
+
+from .models import PushSubscription
+from .push import push_ready, send_to_user
+
 
 
 @login_required
@@ -48,6 +58,7 @@ def refresh(request):
     return redirect("notifications:inbox")
 
 
+
 @login_required
 def prefs(request):
     form = PrefsForm(request.POST or None, instance=get_prefs(request.user))
@@ -55,8 +66,43 @@ def prefs(request):
         form.save()
         messages.success(request, "Notification settings saved.")
         return redirect("accounts:settings")
-    return render(request, "settings/form.html", {
-        "form": form, "title": "Notifications", "cancel_url": reverse("accounts:settings"),
-        "intro": "Choose which alerts appear in your inbox. Alerts to your phone arrive with the app install update.",
+    return render(request, "notifications/prefs.html", {
+        "form": form, "push_ready": push_ready(), "vapid_public_key": settings.VAPID_PUBLIC_KEY,
         "crumbs": crumbs(("Settings", reverse("accounts:settings")), ("Notifications", None)),
     })
+
+
+@api_login_required
+@require_POST
+def push_subscribe(request):
+    try:
+        data = json.loads(request.body)
+        keys = data.get("keys", {})
+        endpoint = data.get("endpoint", "")
+    except (ValueError, AttributeError):
+        return JsonResponse({"error": "bad request"}, status=400)
+    if not (endpoint.startswith("https://") and keys.get("p256dh") and keys.get("auth")):
+        return JsonResponse({"error": "invalid subscription"}, status=400)
+    PushSubscription.objects.update_or_create(endpoint=endpoint, defaults={
+        "owner": request.user, "p256dh": keys["p256dh"], "auth": keys["auth"],
+        "user_agent": request.headers.get("User-Agent", "")[:200],
+    })
+    return JsonResponse({"ok": True})
+
+
+@api_login_required
+@require_POST
+def push_unsubscribe(request):
+    try:
+        endpoint = json.loads(request.body).get("endpoint", "")
+    except (ValueError, AttributeError):
+        endpoint = ""
+    PushSubscription.objects.filter(owner=request.user, endpoint=endpoint).delete()
+    return JsonResponse({"ok": True})
+
+
+@api_login_required
+@require_POST
+def push_test(request):
+    sent = send_to_user(request.user, "Test alert", "Phone alerts are working on this device.", reverse("notifications:inbox"), tag="test")
+    return JsonResponse({"sent": sent})
