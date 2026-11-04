@@ -6,7 +6,13 @@ media/
 staticfiles/
 __pycache__/
 *.pyc
-assets/
+assets/*
+!assets/css/
+assets/css/*
+!assets/css/tailwind.css
+backups/
+cache/
+logs/
 .django_tailwind_cli/
 private_media/
 vapid_private.pem

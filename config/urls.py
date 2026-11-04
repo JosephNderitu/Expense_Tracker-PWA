@@ -19,10 +19,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from decouple import config
 
 urlpatterns = [
     path("", include("apps.pwa.urls")),
-    path("admin/", admin.site.urls),
+    path(config("ADMIN_URL", default="admin/"), admin.site.urls),
     path("accounts/", include("apps.accounts.urls")),
     path("work/", include("apps.work.urls")),
     path("planning/", include("apps.planning.urls")),
