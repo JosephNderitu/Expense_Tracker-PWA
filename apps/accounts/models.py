@@ -25,3 +25,4 @@ class User(AbstractUser):
     REQUIRED_FIELDS = []
     objects = UserManager()
     timezone = models.CharField(max_length=40, default="America/New_York")
+    show_equivalent = models.CharField(max_length=3, blank=True, default="")   # "" or a currency code

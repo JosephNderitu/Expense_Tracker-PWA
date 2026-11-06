@@ -12,6 +12,10 @@ from .forms import CategoryForm
 from .models import Category, Transaction, Workspace
 from .nav import crumbs
 from .services import ensure_workspaces
+from .forms import CategoryForm, CurrencyForm
+from .rates import is_stale, latest
+from .rates import refresh as refresh_rates
+from .services import account_has_data, ensure_workspaces
 
 SETTINGS = lambda: ("Settings", reverse("accounts:settings"))
 CATEGORIES = lambda: ("Categories", reverse("core:category_list"))
@@ -87,3 +91,38 @@ def category_delete(request, pk):
     category.delete()
     messages.success(request, f"{name} deleted.")
     return redirect("core:category_list")
+
+@login_required
+def currency_settings(request):
+    ensure_workspaces(request.user)
+    current = request.user.workspaces.first().currency
+    locked = account_has_data(request.user)
+    form = CurrencyForm(request.POST or None, locked=locked,
+                        initial={"currency": current, "show_equivalent": request.user.show_equivalent})
+    if request.method == "POST" and form.is_valid():
+        chosen = form.cleaned_data["currency"]
+        if not locked and chosen != current:
+            request.user.workspaces.update(currency=chosen)
+        alt = form.cleaned_data["show_equivalent"]
+        request.user.show_equivalent = "" if alt == chosen else alt
+        request.user.save(update_fields=["show_equivalent"])
+        refresh_rates()                      # make sure there is a rate to work with
+        messages.success(request, "Currency settings saved.")
+        return redirect("core:currency_settings")
+    row = latest()
+    return render(request, "core/currency.html", {
+        "form": form, "locked": locked, "rate": row, "stale": is_stale(row),
+        "crumbs": crumbs(SETTINGS(), ("Currency", None)),
+    })
+
+
+@login_required
+@require_POST
+def currency_refresh(request):
+    before = latest()
+    row = refresh_rates(force=True)
+    if row and (not before or row.pk != before.pk):
+        messages.success(request, f"Updated: 1 USD = {row.rate:.2f} KES.")
+    else:
+        messages.info(request, "The rate was updated a moment ago, or the rate service did not answer. The last known rate stays in use.")
+    return redirect("core:currency_settings")

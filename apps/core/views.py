@@ -14,6 +14,8 @@ from .models import Attachment, Transaction
 from .selectors import add_months, dashboard_data, parse_month, BASE, ZERO
 from .services import SCOPES, ensure_workspaces, get_active_workspace, get_scope, scoped_workspaces
 from .validators import MAX_PER_ENTRY
+from .rates import is_stale, usd_kes_from
+from .rates import refresh as refresh_rates
 
 from apps.work.models import Job
 from datetime import timedelta
@@ -71,6 +73,8 @@ def transaction_create(request):
     return render(request, "core/transaction_form.html",
                   {"form": form, "workspace": workspace,
                    "crumbs": crumbs(("Entries", reverse("core:transaction_list")), ("Add entry", None)),
+                    "live_rate": (rate := refresh_rates()), 
+                    "live_stale": is_stale(rate),
                    })
 
 @login_required
@@ -85,9 +89,7 @@ def transaction_detail(request, pk):
         messages.success(request, f"{added} file{'s' if added != 1 else ''} added.")
         return redirect("core:transaction_detail", pk=entry.pk)
     base = entry.workspace.currency
-    display_rate = None
-    if entry.currency != base and entry.rate_to_base:
-        display_rate = (Decimal(1) / entry.rate_to_base).quantize(Decimal("0.0001"))
+    display_rate = usd_kes_from(entry.currency, base, entry.rate_to_base)
     return render(request, "core/transaction_detail.html", {
         "entry": entry,
         "attachments": attachments,
@@ -254,7 +256,8 @@ def transaction_edit(request, pk):
         messages.success(request, "Entry updated.")
         return redirect("core:transaction_detail", pk=entry.pk)
     return render(request, "core/transaction_form.html",
-                     {"form": form, "workspace": entry.workspace, "entry": entry, "editing": True, "crumbs": crumbs(("Entries", reverse("core:transaction_list")),
+                     {"form": form, "workspace": entry.workspace, "live_rate": (rate := refresh_rates()), "live_stale": is_stale(rate),
+                      "entry": entry, "editing": True, "crumbs": crumbs(("Entries", reverse("core:transaction_list")),
                    (entry.category.name, reverse("core:transaction_detail", args=[entry.pk])), ("Edit", None)),})
 
 @login_required

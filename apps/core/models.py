@@ -192,3 +192,18 @@ class Attachment(TimeStampedModel):
             else "fa-file-excel" if "spreadsheetml" in self.content_type
             else "fa-file"
         )
+        
+class ExchangeRate(models.Model):
+    """One daily snapshot: how many `quote` you get for 1 `base`."""
+    base = models.CharField(max_length=3)
+    quote = models.CharField(max_length=3)
+    rate = models.DecimalField(max_digits=18, decimal_places=6)
+    source = models.CharField(max_length=40, blank=True)
+    fetched_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-fetched_at", "-id"]
+        indexes = [models.Index(fields=["base", "quote", "-fetched_at"])]
+
+    def __str__(self):
+        return f"1 {self.base} = {self.rate} {self.quote} ({self.fetched_at:%Y-%m-%d})"

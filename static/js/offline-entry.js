@@ -48,7 +48,8 @@
       field("Gallons", input("gallons", { type: "number", step: "0.001", min: "0.001", inputmode: "decimal", required: true })),
       field("Price per gallon (optional)", input("price_per_gallon", { type: "number", step: "0.001", min: "0.001", inputmode: "decimal" })),
       field("Total cost", input("total", { type: "number", step: "0.01", min: "0.01", inputmode: "decimal", required: true })),
-      field("State", select("state", [["", "Choose state"], ...L.states.map((s) => [s, s])], { required: true, value: L.last_state })),
+      state.L.workspaces.some((w) => w.type === "work" && w.currency !== "USD") ? null
+        : field("State", select("state", [["", "Choose state"], ...L.states.map((s) => [s, s])], { required: true, value: L.last_state })),
       field("Method", select("payment_method", L.methods, { value: "card" })),
       field("Odometer (optional)", input("odometer", { type: "number", min: "0", inputmode: "numeric" })),
       truck(),
@@ -67,10 +68,14 @@
     ];
   }
 
+  const sym = () => {
+    const ws = state.L.workspaces.find((w) => w.type === (state.type === "entry" ? state.workspace : "work"));
+    return (ws && ws.symbol) || "$";
+  };
   const LABELS = {
-    entry: (d) => `$${d.amount} · ${(document.querySelector("select[name=category] option:checked") || {}).textContent || "Entry"}`,
-    fuel: (d) => `${d.gallons} gal · ${d.state} · $${d.total}`,
-    job: (d) => `$${d.gross_pay} · ${[d.origin, d.destination].filter(Boolean).join(" to ") || "Job"}`,
+    entry: (d) => `${sym()}${d.amount} · ${(document.querySelector("select[name=category] option:checked") || {}).textContent || "Entry"}`,
+    fuel: (d) => `${d.gallons} gal${d.state ? " · " + d.state : ""} · ${sym()}${d.total}`,
+    job: (d) => `${sym()}${d.gross_pay} · ${[d.origin, d.destination].filter(Boolean).join(" to ") || "Job"}`,
   };
 
   function renderTabs() {
@@ -92,7 +97,7 @@
 
   function renderForm() {
     const form = $("#entry-form");
-    form.replaceChildren(...fields(), el("button", { class: "min-h-12 w-full rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90", text: "Save on this device" }));
+    form.replaceChildren(...fields().filter(Boolean), el("button", { class: "min-h-12 w-full rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90", text: "Save on this device" }));
     const total = form.querySelector("[name=total]"), gal = form.querySelector("[name=gallons]"), price = form.querySelector("[name=price_per_gallon]");
     if (total && gal && price) {
       let touched = false;

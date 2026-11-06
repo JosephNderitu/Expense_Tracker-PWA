@@ -10,6 +10,7 @@ from django.db.models import Q, Max
 from .constants import SUPPORTED_CURRENCIES, ICON_CHOICES, SYSTEM_CATEGORIES
 from .models import Attachment, Category, Transaction
 from .validators import ACCEPT, MAX_PER_ENTRY, clean_uploads
+from .rates import rate_to_base, usd_kes_from
 
 INPUT = (
     "block w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink "
@@ -79,12 +80,14 @@ class TransactionForm(StyledFormMixin, forms.ModelForm):
             categories = workspace.categories.filter(Q(is_active=True) | Q(pk=self.instance.category_id))
             self.fields.pop("attachments", None)
             self.fields.pop("attachment_kind", None)
-            if self.instance.currency != workspace.currency and self.instance.rate_to_base:
-                self.initial["exchange_rate"] = (Decimal(1) / self.instance.rate_to_base).quantize(Decimal("0.0001"))
+            shown = usd_kes_from(self.instance.currency, workspace.currency, self.instance.rate_to_base)
+            if shown:
+                self.initial["exchange_rate"] = shown
         else:
             self.initial["currency"] = workspace.currency
         self.fields["category"].queryset = categories
-        self.fields["exchange_rate"].label = f"Exchange rate: how many of this currency equal 1 {workspace.currency}"
+        self.fields["exchange_rate"].label = "Exchange rate: 1 USD equals how many KES"
+        self.fields["exchange_rate"].help_text = "Starts from today's live rate. Change it if your bank or mobile money gave you a different one."
 
     def clean(self):
         cleaned = super().clean()
@@ -92,12 +95,25 @@ class TransactionForm(StyledFormMixin, forms.ModelForm):
         rate = cleaned.get("exchange_rate")
         if currency and currency != self.workspace.currency:
             if not rate:
-                self.add_error("exchange_rate", f"Enter how many {currency} equal 1 {self.workspace.currency}.")
+                self.add_error("exchange_rate", "Enter the exchange rate (1 USD = how many KES).")
             else:
-                self.instance.rate_to_base = (Decimal(1) / rate).quantize(Decimal("0.00000001"))
+                self.instance.rate_to_base = rate_to_base(currency, self.workspace.currency, rate)
         else:
             self.instance.rate_to_base = Decimal("1")
         return cleaned
+
+
+class CurrencyForm(StyledFormMixin, forms.Form):
+    currency = forms.ChoiceField(choices=SUPPORTED_CURRENCIES, label="Account currency")
+    show_equivalent = forms.ChoiceField(
+        choices=[("", "Do not show")] + list(SUPPORTED_CURRENCIES), required=False,
+        label="Also show approximate amounts in",
+        help_text="Adds a small '≈' line under the dashboard cards, using the live rate.",
+    )
+    def __init__(self, *args, locked, **kwargs):
+        super().__init__(*args, **kwargs)
+        if locked:
+            self.fields["currency"].disabled = True
 
 
 class AttachmentUploadForm(StyledFormMixin, forms.Form):

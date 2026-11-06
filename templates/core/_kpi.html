@@ -4,6 +4,7 @@
     <div class="min-w-0">
       <p class="truncate text-[0.7rem] font-medium uppercase tracking-wider text-muted sm:text-xs">{{ label }}</p>
       <p class="amount mt-1.5 font-semibold tabular-nums tracking-tight {% if hero %}text-3xl{% else %}text-xl sm:text-3xl{% endif %}" data-count="{{ value|floatformat:'2u' }}">{{ value|money:symbol }}</p>
+      {% if alt_value %}<p class="amount mt-0.5 text-xs text-muted" title="{{ alt_note }}">≈ {{ alt_value|money:alt_symbol }}</p>{% endif %}
     </div>
     <span class="grid shrink-0 place-items-center rounded-full bg-accent/10 text-accent {% if hero %}size-11{% else %}size-9 sm:size-11{% endif %}">
       <i class="fa-solid {{ icon }} {% if not hero %}text-sm sm:text-base{% endif %}"></i>

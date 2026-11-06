@@ -12,6 +12,7 @@ from .constants import CURRENCY_SYMBOLS
 from .models import Transaction
 from .templatetags.money import money
 from .dates import add_months
+from .rates import latest as latest_rate, rate_between
 
 ZERO = Decimal("0")
 BASE = ExpressionWrapper(F("amount") * F("rate_to_base"), output_field=DecimalField(max_digits=24, decimal_places=8))
@@ -185,6 +186,16 @@ def dashboard_data(user, scope, month_start):
     income, spent = _period(workspaces, month_start, next_month)
     p_income, p_spent = _period(workspaces, prev_month, month_start)
     saved, p_saved = income - spent, p_income - p_spent
+    alt = None
+    code = getattr(user, "show_equivalent", "") or ""
+    if code and code != currency:
+        rate, row = rate_between(currency, code), latest_rate()
+        if rate and row:
+            alt = {
+                "symbol": CURRENCY_SYMBOLS.get(code, f"{code} "),
+                "income": income * rate, "spent": spent * rate, "saved": saved * rate,
+                "note": f"Approximate, using 1 USD = {row.rate:.2f} KES (as of {row.fetched_at:%b %d})",
+            }
 
     previous = {r["category__name"]: r["total"] for r in _by_category(prev_ledger)}
     categories = []
@@ -251,4 +262,5 @@ def dashboard_data(user, scope, month_start):
         },
         "budget_panel": _budget_panel(workspaces, month_ledger, spent, scope),
         "bills_due": _bills_due(workspaces, timezone.localdate())[:5],
+        "alt": alt,
     }

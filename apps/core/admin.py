@@ -1,6 +1,6 @@
 # apps/core/admin.py
 from django.contrib import admin
-from .models import Category, Transaction, Workspace
+from .models import Category, Transaction, Workspace, ExchangeRate
 
 admin.site.register(Workspace)
 
@@ -16,3 +16,5 @@ class TransactionAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return Transaction.all_objects.all()
+    
+admin.site.register(ExchangeRate)

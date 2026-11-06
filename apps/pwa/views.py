@@ -1,4 +1,3 @@
-# apps/pwa/views.py
 import hashlib
 import json
 import os
@@ -13,6 +12,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.core.api import api_login_required
+from apps.core.constants import CURRENCY_SYMBOLS
 from apps.core.forms import TransactionForm
 from apps.core.models import Transaction, Workspace
 from apps.core.services import ensure_workspaces
@@ -91,6 +91,7 @@ def lookups(request):
         "user": request.user.pk,
         "workspaces": [{
             "type": w.type, "name": w.name, "currency": w.currency,
+            "symbol": CURRENCY_SYMBOLS.get(w.currency, f"{w.currency} "),
             "categories": [{"id": c.pk, "name": c.name, "kind": c.kind}
                            for c in w.categories.filter(is_active=True).order_by("sort_order", "name")],
         } for w in workspaces],

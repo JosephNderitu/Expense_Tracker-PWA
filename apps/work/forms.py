@@ -139,6 +139,11 @@ class FuelForm(WorkExpenseForm):
             "truck": data["truck"], "gallons": data["gallons"], "price_per_gallon": price,
             "state": data["state"], "odometer": data["odometer"], "station": data["station"],
         })
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.workspace.currency != "USD":       # US state codes do not apply outside the US
+            del self.fields["state"]
 
 
 class MaintenanceForm(WorkExpenseForm):

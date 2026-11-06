@@ -22,7 +22,14 @@
       {% include "accounts/_field.html" with field=form.amount %}
       {% include "accounts/_field.html" with field=form.currency %}
     </div>
-    <div id="rate-row">{% include "accounts/_field.html" with field=form.exchange_rate %}</div>
+    <div id="rate-row" data-live="{% if live_rate %}{{ live_rate.rate|floatformat:'4u' }}{% endif %}">
+      {% include "accounts/_field.html" with field=form.exchange_rate %}
+      <p class="mt-1 text-xs text-muted">
+        {% if live_rate %}Live rate: 1 USD = {{ live_rate.rate|floatformat:2 }} KES, as of {{ live_rate.fetched_at|date:"M j" }}.{% if live_stale %} <span class="text-negative">That is more than 3 days old, so check it.</span>{% endif %}
+        {% else %}No live rate is available right now. Type the rate you were given.{% endif %}
+        <a href="https://www.exchangerate-api.com" rel="noopener" class="underline">Rates By Exchange Rate API</a>
+      </p>
+    </div>
     {% include "accounts/_field.html" with field=form.date %}
     {% include "accounts/_field.html" with field=form.payment_method %}
     {% include "accounts/_field.html" with field=form.note %}
@@ -60,8 +67,14 @@
 (() => {
   const currency = document.getElementById("id_currency");
   const row = document.getElementById("rate-row");
+  const rate = document.getElementById("id_exchange_rate");
   const base = "{{ workspace.currency }}";
-  const sync = () => row.classList.toggle("hidden", currency.value === base);
+  const live = parseFloat(row.dataset.live);
+  const sync = () => {
+    const foreign = currency.value !== base;
+    row.classList.toggle("hidden", !foreign);
+    if (foreign && !rate.value && Number.isFinite(live)) rate.value = live.toFixed(4);   // today's rate, unless one is already there
+  };
   currency.addEventListener("change", sync);
   sync();
 })();

@@ -27,4 +27,7 @@ urlpatterns = [
     path("settings/categories/<int:pk>/", manage_views.category_edit, name="category_edit"),
     path("settings/categories/<int:pk>/toggle/", manage_views.category_toggle, name="category_toggle"),
     path("settings/categories/<int:pk>/delete/", manage_views.category_delete, name="category_delete"),
+    
+    path("settings/currency/", manage_views.currency_settings, name="currency_settings"),
+    path("settings/currency/refresh/", manage_views.currency_refresh, name="currency_refresh"),
 ]

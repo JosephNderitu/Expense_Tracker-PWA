@@ -53,7 +53,7 @@
       {% if display_rate %}
         <div class="sm:col-span-2">
           <dt class="text-muted">Converted</dt>
-          <dd class="amount font-medium">{{ entry.base_amount|money:base_symbol }} <span class="font-normal text-muted">at {{ display_rate }} {{ entry.currency }} per 1 {{ entry.workspace.currency }}</span></dd>
+          <dd class="amount font-medium">{{ entry.base_amount|money:base_symbol }} <span class="font-normal text-muted">at 1 USD = {{ display_rate }} KES</span></dd>
         </div>
       {% endif %}
       {% if entry.note %}<div class="sm:col-span-2"><dt class="text-muted">Note</dt><dd>{{ entry.note }}</dd></div>{% endif %}

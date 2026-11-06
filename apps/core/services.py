@@ -1,7 +1,7 @@
 # apps/core/services.py
 from django.db import transaction as db_transaction
 
-from .models import Category, Workspace
+from .models import Category, Workspace, Transaction
 
 # (name, kind, Font Awesome icon, color)
 DEFAULT_CATEGORIES = {
@@ -63,3 +63,13 @@ def scoped_workspaces(request):
     qs = Workspace.objects.filter(owner=request.user)
     scope = get_scope(request)
     return qs if scope == "all" else qs.filter(type=scope)
+
+def account_has_data(user):
+    from apps.planning.models import Bill, Budget
+    from apps.work.models import Job
+    return (
+        Transaction.all_objects.filter(workspace__owner=user).exists()
+        or Job.all_objects.filter(workspace__owner=user).exists()
+        or Bill.objects.filter(workspace__owner=user).exists()
+        or Budget.objects.filter(workspace__owner=user).exists()
+    )

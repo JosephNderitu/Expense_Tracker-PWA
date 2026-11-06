@@ -32,6 +32,7 @@ def settings_home(request):
         ("Account", [
             ("fa-user", "Profile and time zone", "Your name and the time zone used for dates", reverse("accounts:profile")),
             ("fa-key", "Change password", "Choose a new password", reverse("accounts:password_change")),
+            ("fa-coins", "Currency and exchange rate", "Account currency and the live USD to KES rate", reverse("core:currency_settings")),
         ]),
         ("Your data", [
             ("fa-tags", "Categories", "Add, rename, recolour or hide categories", reverse("core:category_list")),

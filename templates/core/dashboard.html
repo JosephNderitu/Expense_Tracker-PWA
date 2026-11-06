@@ -91,16 +91,17 @@
       <a href="{% url 'core:transaction_create' %}" class="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-on-accent hover:opacity-90">
         <i class="fa-solid fa-plus"></i>Add an entry
       </a>
+      <p class="mt-4 text-sm text-muted">New here? <a href="{% url 'core:currency_settings' %}" class="font-medium text-accent hover:underline">Choose your currency</a> and <a href="{% url 'accounts:profile' %}" class="font-medium text-accent hover:underline">set your time zone</a> before adding entries.</p>
     </div>
   {% else %}
 
     <div class="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-      {% include "core/_kpi.html" with label=labels.income value=income icon="fa-wallet" delta=income_delta %}
-      {% include "core/_kpi.html" with label=labels.spent value=spent icon="fa-credit-card" delta=spent_delta %}
+      {% include "core/_kpi.html" with label=labels.income value=income icon="fa-wallet" delta=income_delta alt_value=alt.income alt_symbol=alt.symbol alt_note=alt.note %}
+      {% include "core/_kpi.html" with label=labels.spent value=spent icon="fa-credit-card" delta=spent_delta alt_value=alt.spent alt_symbol=alt.symbol alt_note=alt.note %}
       {% if saving_rate is not None %}
-        {% include "core/_kpi.html" with label=labels.saved value=saved icon="fa-piggy-bank" delta=saved_delta hero=True class="order-first col-span-2 md:order-none md:col-span-1" footnote=saving_rate|floatformat:0|add:"% of income" %}
+        {% include "core/_kpi.html" with label=labels.saved value=saved icon="fa-piggy-bank" delta=saved_delta hero=True class="order-first col-span-2 md:order-none md:col-span-1" footnote=saving_rate|floatformat:0|add:"% of income" alt_value=alt.saved alt_symbol=alt.symbol alt_note=alt.note %}
       {% else %}
-        {% include "core/_kpi.html" with label=labels.saved value=saved icon="fa-piggy-bank" delta=saved_delta hero=True class="order-first col-span-2 md:order-none md:col-span-1" %}
+        {% include "core/_kpi.html" with label=labels.saved value=saved icon="fa-piggy-bank" delta=saved_delta hero=True class="order-first col-span-2 md:order-none md:col-span-1" alt_value=alt.saved alt_symbol=alt.symbol alt_note=alt.note %}
       {% endif %}
     </div>
 

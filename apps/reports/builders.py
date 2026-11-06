@@ -196,7 +196,7 @@ def build_fuel(user, p):
     report.kpis = [("Gallons", gal, "qty"), ("Fuel cost", cost, "money"), ("Average per gallon", (cost / gal) if gal else None, "price"), ("Fill-ups", fills, "num")]
     report.tables.append(Table(
         "Fuel purchased by state", [("State", "text"), ("Gallons", "qty"), ("Cost", "money"), ("Avg per gallon", "price"), ("Fill-ups", "num")],
-        [[s["state"], s["tot_gal"], s["tot_cost"], s["tot_cost"] / s["tot_gal"], s["fills"]] for s in states],
+        [[s["state"] or "Not set", s["tot_gal"], s["tot_cost"], s["tot_cost"] / s["tot_gal"], s["fills"]] for s in states],
         ["Total", gal, cost, (cost / gal) if gal else None, fills],
     ))
     if p.detail:
@@ -204,7 +204,7 @@ def build_fuel(user, p):
         report.tables.append(Table(
             "Every fill-up",
             [("Date", "date"), ("State", "text"), ("Station", "text"), ("Gallons", "qty"), ("Per gallon", "price"), ("Total", "money"), ("Truck", "text"), ("Odometer", "num")],
-            [[f.transaction.date, f.state, f.station, f.gallons, f.price_per_gallon, f.transaction.amount, f.truck.name, f.odometer] for f in fills_list],
+            [[f.transaction.date, f.state or "Not set", f.station, f.gallons, f.price_per_gallon, f.transaction.amount, f.truck.name, f.odometer] for f in fills_list],
         ))
     report.notes += [
         "Gallons are fuel purchased at each fill-up, grouped by the state of purchase.",

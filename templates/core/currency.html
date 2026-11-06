@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Currency{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg space-y-5">
+  <div>
+    <h1 class="text-xl font-semibold tracking-tight">Currency and exchange rate</h1>
+    <p class="mt-1 text-sm text-muted">Pick the currency you earn and spend in. Every amount, chart and report follows it.</p>
+  </div>
+
+  <form method="post" class="space-y-4 rounded-card border border-line bg-surface p-6 shadow-card">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-lg bg-negative/10 px-3.5 py-2.5 text-sm text-negative">{{ form.non_field_errors.0 }}</div>{% endif %}
+    {% include "accounts/_field.html" with field=form.currency %}
+    {% if locked %}
+      <p class="rounded-lg bg-accent/5 px-3 py-2 text-sm text-muted">The currency is locked because this account already has entries, jobs, bills or budgets. Changing it now would silently change what every old amount means. To work in another currency, use a separate account. You can still see approximate amounts in the other currency below.</p>
+    {% else %}
+      <p class="text-sm text-muted">Choose this before you add anything. It cannot be changed once there is data.</p>
+    {% endif %}
+    {% include "accounts/_field.html" with field=form.show_equivalent %}
+    <button class="min-h-11 w-full rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90">Save</button>
+  </form>
+
+  <section class="rounded-card border border-line bg-surface p-6 shadow-card" aria-labelledby="rate-title">
+    <h2 id="rate-title" class="text-sm font-semibold uppercase tracking-wider text-muted">Live exchange rate</h2>
+    {% if rate %}
+      <p class="amount mt-2 text-2xl font-semibold tabular-nums">1 USD = {{ rate.rate|floatformat:2 }} KES</p>
+      <p class="mt-1 text-sm text-muted">As of {{ rate.fetched_at|date:"M j, Y g:i A" }}{% if rate.source %} · {{ rate.source }}{% endif %}</p>
+      {% if stale %}<p class="mt-2 text-sm text-negative">This rate is more than three days old. Press Update now.</p>{% endif %}
+    {% else %}
+      <p class="mt-2 text-sm text-muted">No rate has been stored yet. Press Update now.</p>
+    {% endif %}
+    <form method="post" action="{% url 'core:currency_refresh' %}" class="mt-4">
+      {% csrf_token %}
+      <button class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-line/60 px-4 text-sm font-medium hover:bg-line"><i class="fa-solid fa-rotate"></i>Update now</button>
+    </form>
+    <p class="mt-4 text-xs text-muted">The rate refreshes by itself once a day. Entries in a different currency start from it, and you can always type your own. <a href="https://www.exchangerate-api.com" rel="noopener" class="underline">Rates By Exchange Rate API</a></p>
+  </section>
+</div>
+{% endblock %}
